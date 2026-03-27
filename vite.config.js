@@ -1,8 +1,9 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// https://vite.dev/config/
+// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: 'oh-hell',
+  // WICHTIG: Die "base" Option muss mit einem Schrägstrich beginnen und enden
+  base: '/oh-hell/',
 })
