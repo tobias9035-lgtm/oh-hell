@@ -2,3 +2,8 @@ V1:
 - 4 Spieler
 - Regeln, Zählen, Tabelle funktioniert
 - kein Zugriff auf Tabelle am Ende
+
+V2:
+- 3-5 Spieler möglich
+- Regeln, Zählen, Tabelle funktioniert
+- kein Zugriff auf Tabelle am Ende

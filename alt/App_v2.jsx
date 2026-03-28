@@ -15,7 +15,7 @@ const firebaseConfig = {
 };
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'fahrt-zur-hoelle';
 
-// Initialisierung
+// Initialisierung der Firebase-Dienste außerhalb der Komponente
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
@@ -158,19 +158,29 @@ export default function App() {
 
   const timerRef = useRef(null);
 
+  // Authentifizierung mit Fallback auf Anonym
   useEffect(() => {
     const initAuth = async () => {
       try {
         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          try { await signInWithCustomToken(auth, __initial_auth_token); } catch (e) { await signInAnonymously(auth); }
-        } else { await signInAnonymously(auth); }
-      } catch (err) { console.error("Auth error", err); }
+          try {
+            await signInWithCustomToken(auth, __initial_auth_token);
+          } catch (e) {
+            await signInAnonymously(auth);
+          }
+        } else {
+          await signInAnonymously(auth);
+        }
+      } catch (err) {
+        console.error("Auth initialization failure", err);
+      }
     };
     initAuth();
     const unsubscribe = onAuthStateChanged(auth, setUser);
     return () => unsubscribe();
   }, []);
 
+  // Datenbank-Sync
   useEffect(() => {
     if (!user || !currentRoomId) return;
     const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
@@ -179,17 +189,22 @@ export default function App() {
         const data = docSnap.data();
         if (data.gameState && typeof data.gameState === 'string') data.gameState = JSON.parse(data.gameState);
         setRoomData(data);
-      } else { setErrorMsg("Raum nicht gefunden."); setCurrentRoomId(null); }
+      } else {
+        setErrorMsg("Raum nicht gefunden.");
+        setCurrentRoomId(null);
+      }
     });
     return () => unsubscribe();
   }, [user, currentRoomId]);
 
+  // Bot-Logik und Game Loop
   useEffect(() => {
     if (!roomData || !user || roomData.hostUid !== user.uid || roomData.status !== 'playing') return;
     const gs = roomData.gameState;
     if (!gs) return;
     clearTimeout(timerRef.current);
     const isBot = roomData.players.find(p => p.seat === gs.currentPlayer)?.isBot;
+
     if (gs.phase === 'bidding' && isBot) {
       timerRef.current = setTimeout(() => executeBid(gs.currentPlayer, Math.floor(Math.random() * (gs.hands[gs.currentPlayer].length / 2.5 + 1))), 1500);
     } else if (gs.phase === 'playing' && isBot) {
@@ -281,7 +296,7 @@ export default function App() {
       for (let i = 0; i < roomData.players.length; i++) {
         const b = gs.bids[i], w = gs.tricksWon[i];
         if (b === 0) gs.scores[i] += w === 0 ? 10 : -(w * 10);
-        else gs.scores[i] += w >= b ? (b * 10) + (w - b) : -(Math.abs(b - w)) * 10;
+        else gs.scores[i] += w >= b ? (b * 10) + (w - b) : -(b - w) * 10;
       }
       gs.scoreHistory.push({ roundIndex: gs.roundIndex, cards: getGameConfig(roomData.players.length).cardsPerRound[gs.roundIndex], bids: [...gs.bids], won: [...gs.tricksWon], scores: [...gs.scores] });
       gs.phase = 'round_end'; gs.trick = []; gs.message = 'Runde beendet!';
@@ -314,24 +329,19 @@ export default function App() {
   if (!roomData) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-        <div className="bg-slate-900 p-8 rounded-3xl shadow-2xl text-center max-w-md w-full border border-slate-800 text-white text-left">
-          <h1 className="text-4xl font-black text-yellow-500 mb-6 italic tracking-tight uppercase text-center">Oh Hell!</h1>
-          <div className="space-y-4">
-             <div>
-                <label className="text-[10px] uppercase font-black text-slate-400 ml-1">Dein Name</label>
-                <input value={userName} onChange={e => setUserName(e.target.value)} className="w-full bg-slate-800 border-2 border-slate-700 text-white p-3 rounded-xl outline-none focus:border-blue-500 font-bold mt-1" placeholder="Name..." />
+        <div className="bg-slate-900 p-8 rounded-3xl shadow-2xl text-center max-w-md w-full border border-slate-800 text-white">
+          <h1 className="text-4xl font-black text-yellow-500 mb-6 italic tracking-tight uppercase">Oh Hell!</h1>
+          <input value={userName} onChange={e => setUserName(e.target.value)} className="w-full bg-slate-800 border-2 border-slate-700 text-white p-4 rounded-xl mb-4 outline-none focus:border-blue-500 font-bold" placeholder="Dein Name..." />
+          <div className="bg-slate-800 p-4 rounded-xl mb-4 border border-slate-700">
+             <p className="text-[10px] uppercase font-black text-slate-400 mb-3 tracking-widest text-center">Spieleranzahl</p>
+             <div className="flex justify-center gap-4">
+                {[3, 4, 5].map(n => <button key={n} onClick={() => setTargetPlayerCount(n)} className={`w-12 h-12 rounded-lg font-black transition-all ${targetPlayerCount === n ? 'bg-blue-600 text-white shadow-lg scale-110' : 'bg-slate-700 text-slate-400'}`}>{n}</button>)}
              </div>
-             <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
-                <p className="text-[10px] uppercase font-black text-slate-400 mb-3 tracking-widest text-center">Spieleranzahl</p>
-                <div className="flex justify-center gap-4">
-                   {[3, 4, 5].map(n => <button key={n} onClick={() => setTargetPlayerCount(n)} className={`w-12 h-12 rounded-lg font-black transition-all ${targetPlayerCount === n ? 'bg-blue-600 text-white shadow-lg scale-110' : 'bg-slate-700 text-slate-400'}`}>{n}</button>)}
-                </div>
-             </div>
-             <button onClick={handleCreateRoom} className="w-full bg-green-600 font-black py-4 rounded-xl shadow-lg hover:bg-green-500 transition-all uppercase text-white">Raum Erstellen</button>
-             <div className="flex gap-2">
-               <input value={roomCodeInput} onChange={e => setRoomCodeInput(e.target.value.toUpperCase())} className="w-2/3 bg-slate-800 border border-slate-700 text-white p-4 rounded-xl text-center font-black tracking-widest" placeholder="CODE" />
-               <button onClick={handleJoinRoom} className="w-1/3 bg-slate-700 font-black rounded-xl uppercase text-xs text-white">Beitreten</button>
-             </div>
+          </div>
+          <button onClick={handleCreateRoom} className="w-full bg-green-600 font-black py-4 rounded-xl shadow-lg hover:bg-green-500 transition-all mb-4 uppercase">Raum Erstellen</button>
+          <div className="flex gap-2">
+            <input value={roomCodeInput} onChange={e => setRoomCodeInput(e.target.value.toUpperCase())} className="w-2/3 bg-slate-800 border border-slate-700 text-white p-4 rounded-xl text-center font-black tracking-widest" placeholder="CODE" />
+            <button onClick={handleJoinRoom} className="w-1/3 bg-slate-700 font-black rounded-xl uppercase text-xs">Beitreten</button>
           </div>
         </div>
       </div>
@@ -345,14 +355,14 @@ export default function App() {
           <div className="absolute top-0 right-0 bg-yellow-500 text-slate-900 font-black px-4 py-1 rounded-bl-xl">{roomData.id}</div>
           <h2 className="text-2xl font-black mb-6 mt-4 uppercase">Warteraum</h2>
           <div className="space-y-3 mb-8">
-            {roomData.players.map(p => (
-              <div key={p.uid} className="bg-slate-950/50 p-4 rounded-xl border border-slate-800 font-bold flex justify-between items-center text-white">
+            {roomData.players.map((p, i) => (
+              <div key={p.uid || i} className="bg-slate-950/50 p-4 rounded-xl border border-slate-800 font-bold flex justify-between items-center text-white">
                 <span>{p.name} {p.uid === roomData.hostUid && "👑"}</span>
                 {p.uid === user.uid && <span className="text-[10px] bg-blue-600/40 text-blue-100 px-2 py-1 rounded uppercase">Du</span>}
               </div>
             ))}
           </div>
-          {roomData.hostUid === user.uid ? <button onClick={handleStartGame} className="w-full bg-blue-600 font-black py-5 rounded-xl shadow-xl hover:bg-blue-500 uppercase tracking-widest text-white">Start</button> : <p className="animate-pulse font-bold text-blue-400 uppercase text-xs tracking-widest text-center">Warte auf Host...</p>}
+          {roomData.hostUid === user.uid ? <button onClick={handleStartGame} className="w-full bg-blue-600 font-black py-5 rounded-xl shadow-xl hover:bg-blue-500 uppercase tracking-widest">Start</button> : <p className="animate-pulse font-bold text-blue-400 uppercase text-xs tracking-widest text-center">Warte auf Host...</p>}
         </div>
       </div>
     );
@@ -363,6 +373,7 @@ export default function App() {
   const config = getGameConfig(num);
   const myPlayer = roomData.players.find(p => p.uid === user.uid);
   const mySeat = myPlayer?.seat || 0;
+  // Sitzordnung: ICH auf 6 Uhr (index 0 in sorted), dann im Uhrzeigersinn
   const sortedSeats = Array.from({ length: num }, (_, i) => (mySeat + i) % num);
 
   return (
@@ -381,7 +392,7 @@ export default function App() {
               </p>
            </div>
            <button onClick={() => setShowRules(true)} className="bg-slate-800 w-10 h-10 flex items-center justify-center rounded-xl font-black shadow-lg">📖</button>
-           <button onClick={() => setShowScoreboard(true)} className="bg-blue-600 font-black px-4 py-2 rounded-xl border-b-4 border-blue-800 uppercase text-xs tracking-widest text-white shadow-lg">📊 Tabelle</button>
+           <button onClick={() => setShowScoreboard(true)} className="bg-blue-600 font-black px-4 py-2 rounded-xl border-b-4 border-blue-800 uppercase text-xs tracking-widest">📊 Tabelle</button>
         </div>
       </div>
 
@@ -390,6 +401,8 @@ export default function App() {
         {sortedSeats.map((seat, i) => {
           if (seat === mySeat) return null;
           const p = roomData.players.find(x => x.seat === seat);
+          // Winkel: Wir wollen Ich (i=0) auf 6 Uhr (180 Grad).
+          // i=1 ist links, i=2 oben etc.
           const angle = (i / num) * 360 + 180;
           return (
             <div key={`player-${seat}`} className="absolute flex flex-col items-center z-10 transition-all duration-500" style={{ transform: `rotate(${angle}deg) translateY(-220px) rotate(${-angle}deg)` }}>
@@ -407,6 +420,7 @@ export default function App() {
         <div className="w-64 h-64 sm:w-96 sm:h-96 bg-black/10 rounded-full border-[10px] border-black/30 relative flex items-center justify-center shadow-[inset_0_0_100px_rgba(0,0,0,0.4)]">
           {gs.trick.map((t) => {
             const angleIdx = sortedSeats.indexOf(t.playerIndex);
+            // i=0 (Ich) muss unten auf 6 Uhr landen.
             const angle = (angleIdx / num) * 360 + 180;
             return (
               <div key={`trick-card-${t.card.id}`} className="absolute transition-all duration-500" style={{ transform: `rotate(${angle}deg) translateY(-80px) rotate(${-angle}deg)` }}>
@@ -414,43 +428,16 @@ export default function App() {
               </div>
             );
           })}
-
-          {/* Bidding Overlay in der Tischmitte */}
           {gs.phase === 'bidding' && gs.currentPlayer === mySeat && (
-            <div className="bg-slate-900/95 p-4 sm:p-6 rounded-[2rem] border-2 border-blue-500 shadow-2xl z-50 text-center animate-in zoom-in duration-300 max-w-[320px]">
-               <p className="text-xs font-black uppercase text-blue-400 mb-2 tracking-tighter leading-none">Deine Ansage!</p>
-               
-               {/* Ansage-Historie */}
-               {(() => {
-                  const biddingOrder = [];
-                  let curr = gs.trickLeader;
-                  while (curr !== mySeat) {
-                    if (gs.bids[curr] !== null) biddingOrder.push(curr);
-                    curr = (curr + 1) % num;
-                  }
-                  if (biddingOrder.length > 0) {
-                    return (
-                      <div className="mb-4 bg-black/40 rounded-xl p-2 text-left space-y-1">
-                        {biddingOrder.map(pid => (
-                          <div key={`history-${pid}`} className="flex justify-between text-[10px] font-bold">
-                            <span className="text-slate-400">{roomData.players.find(x => x.seat === pid)?.name}</span>
-                            <span className="text-yellow-500">{gs.bids[pid]} Stich(e)</span>
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  }
-                  return <p className="text-[10px] text-slate-500 mb-4 italic">Du bist als Erster dran.</p>;
-               })()}
-
-               <div className="flex flex-wrap justify-center gap-2">
+            <div className="bg-slate-900/95 p-4 sm:p-6 rounded-[2rem] border-2 border-blue-500 shadow-[0_0_50px_rgba(37,99,235,0.4)] z-50 text-center animate-in zoom-in duration-300">
+               <p className="text-xs font-black uppercase text-blue-400 mb-4 tracking-tighter leading-none">Deine Ansage!</p>
+               <div className="flex flex-wrap justify-center gap-2 max-w-[280px]">
                   {Array.from({ length: config.cardsPerRound[gs.roundIndex] + 1 }).map((_, i) => (
                     <button key={`bid-${i}`} onClick={() => executeBid(mySeat, i)} className="w-9 h-9 sm:w-11 sm:h-11 bg-blue-600 rounded-xl font-black text-sm hover:bg-blue-500 transition-all shadow-[0_4px_0_rgb(30,58,138)] active:translate-y-1 text-white">{i}</button>
                   ))}
                </div>
             </div>
           )}
-
           {gs.phase === 'playing' && gs.currentPlayer === mySeat && gs.trick.length < num && (
             <div className="bg-yellow-500 text-black px-6 py-2 rounded-full font-black text-sm animate-bounce shadow-2xl uppercase">Du bist dran</div>
           )}
@@ -536,15 +523,15 @@ export default function App() {
       {/* Regeln Overlay */}
       {showRules && (
         <div className="absolute inset-0 bg-black/95 z-[100] flex flex-col items-center justify-center p-4 backdrop-blur-3xl text-white">
-          <div className="bg-slate-900 rounded-[32px] shadow-2xl border border-slate-700 w-full max-w-2xl flex flex-col max-h-[85vh] overflow-hidden text-white">
-            <div className="p-6 bg-slate-950/50 flex justify-between items-center border-b border-slate-800 text-white text-white">
-               <h2 className="text-2xl font-black italic uppercase tracking-widest text-white text-white">Spielregeln</h2>
-               <button onClick={() => setShowRules(false)} className="bg-red-600 text-white w-10 h-10 flex items-center justify-center rounded-xl font-black text-white text-white text-white">&times;</button>
+          <div className="bg-slate-900 rounded-[32px] shadow-2xl border border-slate-700 w-full max-w-2xl flex flex-col max-h-[85vh] overflow-hidden">
+            <div className="p-6 bg-slate-950/50 flex justify-between items-center border-b border-slate-800 text-white">
+               <h2 className="text-2xl font-black italic uppercase tracking-widest text-white">Spielregeln</h2>
+               <button onClick={() => setShowRules(false)} className="bg-red-600 text-white w-10 h-10 flex items-center justify-center rounded-xl font-black text-white">&times;</button>
             </div>
-            <div className="p-8 overflow-auto custom-scrollbar text-slate-300 space-y-6 text-sm leading-relaxed text-left text-white text-white">
-              <div className="bg-blue-600/10 p-5 rounded-2xl border border-blue-500/20 text-xs text-white text-white text-white">
+            <div className="p-8 overflow-auto custom-scrollbar text-slate-300 space-y-6 text-sm leading-relaxed text-left text-white">
+              <div className="bg-blue-600/10 p-5 rounded-2xl border border-blue-500/20 text-xs text-white">
                 <p className="font-bold text-blue-400 uppercase tracking-widest text-[10px] mb-3">Punkte & Ablauf</p>
-                <ul className="list-disc ml-5 space-y-2 text-white text-white">
+                <ul className="list-disc ml-5 space-y-2 text-white">
                   <li><strong>Getroffen:</strong> 10 Pkt + 1 Pkt pro Stich.</li>
                   <li><strong>Verfehlt:</strong> -10 Pkt pro Differenz-Stich zur Ansage.</li>
                   <li><strong>Null angesagt:</strong> +10 Pkt bei Erfolg, -10 Pkt pro Stich bei Misserfolg.</li>
