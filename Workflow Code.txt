@@ -1,0 +1,44 @@
+Workflow für Code-Änderungen
+
+Wenn du das Design (CSS) oder die Spiellogik (JSX) ändern möchtest, folgst du immer diesem festen Ablauf:
+
+1. Dateien lokal bearbeiten
+
+Öffne die entsprechende Datei in deinem Projektordner oh-hell mit einem Editor (z.B. VS Code oder Notepad):
+
+Design-Änderungen: Bearbeite src/index.css.
+
+Spiellogik / Funktionen: Bearbeite src/App.jsx.
+
+Konfiguration: Bearbeite vite.config.js oder package.json.
+
+2. (Optional) Lokal testen
+
+Bevor du alles hochlädst, kannst du prüfen, ob dein Code funktioniert. Gib dazu im Terminal im Ordner oh-hell ein:
+
+npm run dev
+
+
+Dies startet einen lokalen Server (meist unter http://localhost:5173). Du kannst die Seite im Browser öffnen und siehst Änderungen sofort, ohne sie hochladen zu müssen. Beende den Server danach mit Strg + C.
+
+3. Änderungen bei GitHub speichern
+
+Damit deine Änderungen online gesichert sind, musst du sie zu GitHub senden:
+
+git add .
+git commit -m "Beschreibe hier kurz deine Änderung (z.B. Neue Kartenfarben)"
+git push origin main
+
+
+4. Änderungen live schalten (Deployment)
+
+Dieser Schritt ist der wichtigste, damit deine Freunde die neue Version sehen. Er erstellt die fertigen Dateien und lädt sie auf die "GitHub Pages" hoch:
+
+npm run deploy
+
+
+5. Browser-Cache leeren
+
+Wenn du die Seite https://tobias9035-lgtm.github.io/oh-hell/ danach aufrufst und die Änderungen nicht siehst, drücke Strg + F5 (Windows) bzw. Cmd + Shift + R (Mac). Das zwingt den Browser, die allerneueste Version vom Server zu laden.
+
+Tipp: Wenn du den Code hier aus dem Canvas kopierst, achte darauf, dass du immer die gesamte Datei ersetzt, um keine Klammern oder Import-Befehle zu vergessen.

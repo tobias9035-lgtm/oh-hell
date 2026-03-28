@@ -13,7 +13,7 @@ const firebaseConfig = {
   appId: "1:629825480306:web:3529900886ee2dc755c4eb",
   measurementId: "G-CHEM1S110Q"
 };
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'fahrt-zur-hoelle';
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'oh-hell-multiplayer';
 
 let app, auth, db;
 if (firebaseConfig) {
@@ -24,21 +24,40 @@ if (firebaseConfig) {
 
 // --- Hilfsfunktionen und Spieldaten ---
 const SUITS = ['hearts', 'diamonds', 'clubs', 'spades'];
-const RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', 'J', 'Q', 'K', '10', 'A'];
-const CARDS_PER_ROUND = [
-  1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 
-  13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1
-];
+const ALL_RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', 'J', 'Q', 'K', '10', 'A'];
 
-const createDeck = () => {
+const getGameConfig = (numPlayers) => {
+  if (numPlayers === 5) {
+    return {
+      maxCards: 10,
+      rounds: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1],
+      ranks: ALL_RANKS
+    };
+  } else if (numPlayers === 3) {
+    return {
+      maxCards: 13,
+      rounds: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1],
+      ranks: ['5', '6', '7', '8', '9', 'J', 'Q', 'K', '10', 'A'] // 2, 3, 4 entfernt
+    };
+  } else {
+    // Standard 4 Spieler
+    return {
+      maxCards: 13,
+      rounds: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1],
+      ranks: ALL_RANKS
+    };
+  }
+};
+
+const createDeck = (ranks) => {
   let deck = [];
   for (let suit of SUITS) {
-    for (let i = 0; i < RANKS.length; i++) {
+    for (let i = 0; i < ranks.length; i++) {
       deck.push({
-        id: `${suit}-${RANKS[i]}`,
+        id: `${suit}-${ranks[i]}`,
         suit: suit,
-        rank: RANKS[i],
-        rankValue: i + 2, 
+        rank: ranks[i],
+        rankValue: ALL_RANKS.indexOf(ranks[i]) + 2, 
         isJoker: false,
       });
     }
@@ -46,7 +65,6 @@ const createDeck = () => {
   deck.push({ id: 'joker_1', suit: 'none', rank: 'Joker', rankValue: 15, isJoker: true });
   deck.push({ id: 'joker_2', suit: 'none', rank: 'Joker', rankValue: 15, isJoker: true });
   
-  // Mischen
   for (let i = deck.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [deck[i], deck[j]] = [deck[j], deck[i]];
@@ -136,12 +154,13 @@ const getSuitSymbol = (suit) => {
   }
 };
 
-const generateRoundState = (rIndex, dealerIndex) => {
-  const deck = createDeck();
-  const numCards = CARDS_PER_ROUND[rIndex];
-  const newHands = [[], [], [], []];
+const generateRoundState = (rIndex, dealerIndex, numPlayers) => {
+  const config = getGameConfig(numPlayers);
+  const deck = createDeck(config.ranks);
+  const numCards = config.rounds[rIndex];
+  const newHands = Array.from({ length: numPlayers }, () => []);
   
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < numPlayers; i++) {
     for (let c = 0; c < numCards; c++) {
       newHands[i].push(deck.pop());
     }
@@ -157,7 +176,7 @@ const generateRoundState = (rIndex, dealerIndex) => {
     }
   }
 
-  const startPlayer = (dealerIndex + 1) % 4;
+  const startPlayer = (dealerIndex + 1) % numPlayers;
 
   return {
     roundIndex: rIndex,
@@ -167,9 +186,9 @@ const generateRoundState = (rIndex, dealerIndex) => {
     trickLeader: startPlayer,
     hands: newHands,
     trick: [],
-    bids: [null, null, null, null],
-    tricksWon: [0, 0, 0, 0],
-    scores: [0, 0, 0, 0], // Startet bei 0, wird aus history geladen falls Runde > 0
+    bids: Array(numPlayers).fill(null),
+    tricksWon: Array(numPlayers).fill(0),
+    scores: Array(numPlayers).fill(0),
     scoreHistory: [],
     trumpCard: trump,
     message: `Runde ${rIndex + 1}: Ansagen!`,
@@ -177,8 +196,6 @@ const generateRoundState = (rIndex, dealerIndex) => {
   };
 };
 
-
-// --- React Komponente ---
 export default function App() {
   const [user, setUser] = useState(null);
   const [userName, setUserName] = useState('');
@@ -188,10 +205,10 @@ export default function App() {
   const [showScoreboard, setShowScoreboard] = useState(false);
   const [showRules, setShowRules] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [targetPlayers, setTargetPlayers] = useState(4); // 3, 4, oder 5
 
   const timerRef = useRef(null);
 
-  // --- 1. Firebase Auth ---
   useEffect(() => {
     if (!auth) return;
     const initAuth = async () => {
@@ -210,7 +227,6 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // --- 2. Firestore Sync ---
   useEffect(() => {
     if (!user || !currentRoomId || !db) return;
     
@@ -218,9 +234,12 @@ export default function App() {
     const unsubscribe = onSnapshot(roomRef, (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
-        // Parse the serialized gameState to avoid nested array issues
         if (data.gameState && typeof data.gameState === 'string') {
-          data.gameState = JSON.parse(data.gameState);
+          try {
+            data.gameState = JSON.parse(data.gameState);
+          } catch (e) {
+            console.error("Failed to parse gameState", e);
+          }
         }
         setRoomData(data);
       } else {
@@ -235,8 +254,6 @@ export default function App() {
     return () => unsubscribe();
   }, [user, currentRoomId]);
 
-
-  // --- 3. Bot & Game Loop Logic (Only Host runs this) ---
   useEffect(() => {
     if (!roomData || !user || roomData.hostUid !== user.uid) return;
     
@@ -244,21 +261,23 @@ export default function App() {
     if (!gs || roomData.status !== 'playing') return;
 
     clearTimeout(timerRef.current);
-
+    const numPlayers = roomData.players.length;
     const isCurrentPlayerBot = roomData.players.find(p => p.seat === gs.currentPlayer)?.isBot;
 
     if (gs.phase === 'bidding' && isCurrentPlayerBot) {
       timerRef.current = setTimeout(() => {
         const handSize = gs.hands[gs.currentPlayer].length;
-        const randomBid = Math.floor(Math.random() * (handSize / 3 + 1));
+        const randomBid = Math.floor(Math.random() * (handSize / 2.5 + 1));
         executeBid(gs.currentPlayer, randomBid);
       }, 1500);
     } 
     else if (gs.phase === 'playing' && isCurrentPlayerBot) {
       timerRef.current = setTimeout(() => {
         const validCards = getValidCards(gs.hands[gs.currentPlayer], gs.trick, gs.trumpCard?.suit);
-        const cardToPlay = validCards[Math.floor(Math.random() * validCards.length)];
-        executePlayCard(gs.currentPlayer, cardToPlay);
+        if (validCards.length > 0) {
+           const cardToPlay = validCards[Math.floor(Math.random() * validCards.length)];
+           executePlayCard(gs.currentPlayer, cardToPlay);
+        }
       }, 2000);
     }
     else if (gs.phase === 'trick_end') {
@@ -275,19 +294,19 @@ export default function App() {
     return () => clearTimeout(timerRef.current);
   }, [roomData?.gameState?.phase, roomData?.gameState?.currentPlayer, roomData?.gameState?.trick?.length, user]);
 
-
-  // --- Lobby Actions ---
   const generateRoomCode = () => Math.random().toString(36).substring(2, 6).toUpperCase();
 
   const handleCreateRoom = async () => {
     if (!userName.trim()) { setErrorMsg("Bitte Namen eingeben"); return; }
+    if (!db) return;
     const newRoomId = generateRoomCode();
     const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', newRoomId);
     
     await setDoc(roomRef, {
       id: newRoomId,
       hostUid: user.uid,
-      status: 'waiting', // waiting, playing, finished
+      status: 'waiting',
+      targetPlayerCount: targetPlayers,
       players: [{ uid: user.uid, name: userName, isBot: false, seat: null }],
       gameState: null
     });
@@ -299,6 +318,7 @@ export default function App() {
   const handleJoinRoom = async () => {
     if (!userName.trim()) { setErrorMsg("Bitte Namen eingeben"); return; }
     if (!roomCodeInput.trim()) { setErrorMsg("Bitte Code eingeben"); return; }
+    if (!db) return;
     
     const code = roomCodeInput.trim().toUpperCase();
     const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', code);
@@ -310,12 +330,12 @@ export default function App() {
         setErrorMsg("Spiel läuft bereits.");
         return;
       }
-      if (data.players.length >= 4) {
-        setErrorMsg("Raum ist voll.");
+      if (data.players.length >= data.targetPlayerCount) {
+        setErrorMsg("Raum ist bereits voll für diese Spieleranzahl.");
         return;
       }
       if (data.players.some(p => p.uid === user.uid)) {
-        setCurrentRoomId(code); // Already inside
+        setCurrentRoomId(code);
         return;
       }
       
@@ -329,50 +349,43 @@ export default function App() {
   };
 
   const handleStartGame = async () => {
-    if (roomData.hostUid !== user.uid) return;
+    if (roomData.hostUid !== user.uid || !db) return;
     
     let finalPlayers = [...roomData.players];
+    const target = roomData.targetPlayerCount;
     let botCount = 1;
-    // Fill with bots
-    while (finalPlayers.length < 4) {
+    while (finalPlayers.length < target) {
       finalPlayers.push({ uid: `bot-${Date.now()}-${botCount}`, name: `Bot ${botCount}`, isBot: true, seat: null });
       botCount++;
     }
 
-    // Assign random seats 0-3
-    const seats = [0, 1, 2, 3].sort(() => Math.random() - 0.5);
+    const seats = Array.from({ length: target }, (_, i) => i).sort(() => Math.random() - 0.5);
     finalPlayers.forEach((p, i) => p.seat = seats[i]);
-    // Sort array by seat exactly
     finalPlayers.sort((a, b) => a.seat - b.seat);
 
-    const initialGs = generateRoundState(0, 3);
-
+    const initialGs = generateRoundState(0, target - 1, target);
     const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
+    
     await updateDoc(roomRef, {
       status: 'playing',
       players: finalPlayers,
-      gameState: JSON.stringify(initialGs) // Serialize nested arrays
+      gameState: JSON.stringify(initialGs)
     });
   };
 
-
-  // --- Game Actions (Firestore Updates) ---
-  const updateGameState = async (newGsModifications) => {
-    const gs = JSON.parse(JSON.stringify(roomData.gameState)); // Deep copy
-    Object.assign(gs, newGsModifications);
-    const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
-    await updateDoc(roomRef, { gameState: JSON.stringify(gs) });
-  };
-
   const executeStartRound = async (rIndex, oldScores, oldHistory) => {
-    if (rIndex >= CARDS_PER_ROUND.length) {
+    if (!db) return;
+    const numPlayers = roomData.players.length;
+    const config = getGameConfig(numPlayers);
+
+    if (rIndex >= config.rounds.length) {
       const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
       await updateDoc(roomRef, { status: 'finished' });
       return;
     }
     const dealerIndex = roomData.gameState.dealer;
-    const nextDealer = (dealerIndex + 1) % 4;
-    const newGs = generateRoundState(rIndex, nextDealer);
+    const nextDealer = (dealerIndex + 1) % numPlayers;
+    const newGs = generateRoundState(rIndex, nextDealer, numPlayers);
     newGs.scores = oldScores;
     newGs.scoreHistory = oldHistory;
     
@@ -381,10 +394,12 @@ export default function App() {
   };
 
   const executeBid = async (playerIndex, bid) => {
+    if (!db) return;
+    const numPlayers = roomData.players.length;
     const gs = JSON.parse(JSON.stringify(roomData.gameState));
     gs.bids[playerIndex] = bid;
     
-    let nextPlayer = (gs.currentPlayer + 1) % 4;
+    let nextPlayer = (gs.currentPlayer + 1) % numPlayers;
     if (nextPlayer === gs.trickLeader) {
       gs.phase = 'playing';
       gs.message = 'Spielphase beginnt!';
@@ -399,15 +414,17 @@ export default function App() {
   };
 
   const executePlayCard = async (playerIndex, card) => {
+    if (!db) return;
+    const numPlayers = roomData.players.length;
     const gs = JSON.parse(JSON.stringify(roomData.gameState));
     gs.hands[playerIndex] = gs.hands[playerIndex].filter(c => c.id !== card.id);
     gs.trick.push({ playerIndex, card });
     
-    if (gs.trick.length === 4) {
+    if (gs.trick.length === numPlayers) {
       gs.phase = 'trick_end';
       gs.currentPlayer = null;
     } else {
-      gs.currentPlayer = (gs.currentPlayer + 1) % 4;
+      gs.currentPlayer = (gs.currentPlayer + 1) % numPlayers;
       gs.message = `${roomData.players[gs.currentPlayer].name} spielt...`;
     }
 
@@ -416,14 +433,16 @@ export default function App() {
   };
 
   const executeResolveTrick = async () => {
+    if (!db) return;
+    const numPlayers = roomData.players.length;
     const gs = JSON.parse(JSON.stringify(roomData.gameState));
     const winner = determineWinner(gs.trick, gs.trumpCard?.suit);
     gs.tricksWon[winner] += 1;
     
-    const handsEmpty = gs.hands[0].length === 0; // Check any hand
+    const handsEmpty = gs.hands[0].length === 0;
 
     if (handsEmpty) {
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < numPlayers; i++) {
         const bid = gs.bids[i];
         const won = gs.tricksWon[i];
         if (bid === 0) {
@@ -433,9 +452,10 @@ export default function App() {
         }
       }
       
+      const config = getGameConfig(numPlayers);
       gs.scoreHistory.push({
         roundIndex: gs.roundIndex,
-        cards: CARDS_PER_ROUND[gs.roundIndex],
+        cards: config.rounds[gs.roundIndex],
         bids: [...gs.bids],
         won: [...gs.tricksWon],
         scores: [...gs.scores]
@@ -443,14 +463,14 @@ export default function App() {
 
       gs.phase = 'round_end';
       gs.trick = [];
-      gs.message = `Runde beendet! ${roomData.players[winner].name} holt den letzten Stich.`;
+      gs.message = `Runde beendet! ${roomData.players[winner].name} holt den Stich.`;
       gs.lastWinner = winner;
     } else {
       gs.phase = 'playing';
       gs.trick = [];
       gs.currentPlayer = winner;
       gs.trickLeader = winner;
-      gs.message = `${roomData.players[winner].name} macht den Stich und ist dran.`;
+      gs.message = `${roomData.players[winner].name} macht den Stich.`;
       gs.lastWinner = winner;
     }
 
@@ -458,7 +478,6 @@ export default function App() {
     await updateDoc(roomRef, { gameState: JSON.stringify(gs) });
   };
 
-  // --- Render Helpers ---
   const renderCard = (card, isPlayable = false, onClick = null) => {
     if (!card) return null;
     const isRed = card.suit === 'hearts' || card.suit === 'diamonds';
@@ -467,65 +486,89 @@ export default function App() {
     return (
       <div 
         onClick={() => isPlayable && onClick && onClick(card)}
-        className={`w-12 h-16 sm:w-20 sm:h-28 bg-white rounded-lg shadow-md border border-slate-300 flex flex-col justify-between p-1 sm:p-2 select-none 
-          ${isPlayable ? 'cursor-pointer hover:-translate-y-2 hover:shadow-lg transition-transform' : 'opacity-90'}
-          ${card.isJoker ? 'text-purple-600' : isRed ? 'text-red-600' : 'text-slate-800'}`}
+        className={`w-14 h-20 sm:w-24 sm:h-36 bg-white rounded-xl shadow-xl border-2 border-slate-200 flex flex-col justify-between p-2 sm:p-3 select-none transform transition-all duration-200
+          ${isPlayable ? 'cursor-pointer hover:-translate-y-4 hover:rotate-2 hover:border-green-400 z-10' : 'opacity-95'}
+          ${card.isJoker ? 'text-purple-600 bg-purple-50' : isRed ? 'text-red-600' : 'text-slate-900'}`}
       >
-        <div className="text-[10px] sm:text-sm font-bold">{card.rank}</div>
-        <div className="text-xl sm:text-4xl text-center self-center">{card.isJoker ? '🃏' : suitSymbol}</div>
-        <div className="text-[10px] sm:text-sm font-bold text-right rotate-180">{card.rank}</div>
+        <div className="text-xs sm:text-lg font-black">{card.rank}</div>
+        <div className="text-3xl sm:text-5xl text-center self-center drop-shadow-sm">{card.isJoker ? '🃏' : suitSymbol}</div>
+        <div className="text-xs sm:text-lg font-black text-right rotate-180">{card.rank}</div>
       </div>
     );
   };
 
   const renderCardBack = () => (
-    <div className="w-8 h-12 sm:w-14 sm:h-20 bg-blue-800 rounded shadow-md border-2 border-white flex items-center justify-center -ml-4 sm:-ml-6 first:ml-0">
-      <div className="w-full h-full border border-blue-400 opacity-50 m-0.5 sm:m-1 rounded-sm flex items-center justify-center">
-        <span className="text-white text-opacity-50 text-[8px] sm:text-xs">FzH</span>
+    <div className="w-10 h-14 sm:w-16 sm:h-24 bg-gradient-to-br from-blue-700 to-blue-900 rounded-lg shadow-lg border-2 border-white flex items-center justify-center -ml-6 sm:-ml-10 first:ml-0 transform hover:translate-y-[-4px] transition-transform">
+      <div className="w-[85%] h-[85%] border-2 border-blue-400 border-dashed opacity-40 rounded flex items-center justify-center">
+        <span className="text-white text-opacity-40 text-[8px] sm:text-xs font-bold tracking-widest uppercase rotate-45">Oh Hell</span>
       </div>
     </div>
   );
 
-  // === RENDER ===
-  if (!user || !db) return <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white">Verbinde...</div>;
+  if (!user || !db) return (
+    <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white p-4">
+      <div className="animate-spin h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full mb-4"></div>
+      <p className="text-slate-400 font-medium">Lade Server...</p>
+    </div>
+  );
 
-  // LOBBY VIEW
   if (!currentRoomId || !roomData) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-        <div className="bg-slate-800 p-8 rounded-2xl shadow-2xl text-center max-w-md w-full border border-slate-700">
-          <h1 className="text-4xl font-bold text-red-500 mb-2">Oh Hell</h1>
-          <p className="text-slate-400 mb-8">Multiplayer Edition</p>
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+        <div className="bg-slate-900 p-8 rounded-3xl shadow-2xl text-center max-w-md w-full border border-slate-800 ring-1 ring-white/10">
+          <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-br from-red-500 to-orange-400 mb-2">Oh Hell</h1>
+          <p className="text-slate-500 mb-8 uppercase tracking-[0.2em] text-xs font-bold">Multiplayer Edition</p>
           
-          {errorMsg && <div className="bg-red-900/50 text-red-200 p-3 rounded mb-4 text-sm">{errorMsg}</div>}
+          {errorMsg && <div className="bg-red-500/10 text-red-400 border border-red-500/20 p-4 rounded-xl mb-6 text-sm font-medium">{errorMsg}</div>}
 
-          <div className="space-y-4 text-left">
+          <div className="space-y-6 text-left">
             <div>
-              <label className="block text-slate-300 text-sm mb-1 font-bold">Dein Name</label>
+              <label className="block text-slate-400 text-xs mb-2 font-bold uppercase tracking-widest">Dein Name</label>
               <input 
                 value={userName} onChange={e => setUserName(e.target.value)}
                 maxLength={12}
-                className="w-full bg-slate-900 border border-slate-600 text-white p-3 rounded-lg focus:outline-none focus:border-green-500"
-                placeholder="Spielername..."
+                className="w-full bg-slate-800 border-2 border-slate-700 text-white p-4 rounded-2xl focus:outline-none focus:border-blue-500 transition-colors text-lg font-medium"
+                placeholder="Name eingeben..."
               />
             </div>
             
-            <hr className="border-slate-700 my-4"/>
-            
-            <button onClick={handleCreateRoom} className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition-all">
-              Neuen Raum erstellen
-            </button>
-            
-            <div className="flex items-center space-x-2 pt-4">
-              <input 
-                value={roomCodeInput} onChange={e => setRoomCodeInput(e.target.value.toUpperCase())}
-                maxLength={4}
-                className="w-2/3 bg-slate-900 border border-slate-600 text-white p-3 rounded-lg focus:outline-none focus:border-blue-500 uppercase text-center font-bold tracking-widest"
-                placeholder="CODE"
-              />
-              <button onClick={handleJoinRoom} className="w-1/3 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition-all">
-                Beitreten
+            <div className="flex flex-col gap-3">
+              <div className="bg-slate-800 p-4 rounded-2xl border-2 border-slate-700">
+                <label className="block text-slate-400 text-[10px] mb-3 font-bold uppercase tracking-widest text-center">Spieleranzahl festlegen</label>
+                <div className="flex justify-center gap-4">
+                  {[3, 4, 5].map(n => (
+                    <button 
+                      key={n}
+                      onClick={() => setTargetPlayers(n)}
+                      className={`w-12 h-12 rounded-xl font-black text-lg transition-all ${targetPlayers === n ? 'bg-blue-600 text-white scale-110 shadow-lg ring-2 ring-blue-400' : 'bg-slate-700 text-slate-400 hover:bg-slate-600'}`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button onClick={handleCreateRoom} className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white font-black py-4 px-4 rounded-2xl shadow-xl transition-all transform hover:scale-[1.02] active:scale-[0.98]">
+                RAUM ERSTELLEN
               </button>
+              
+              <div className="relative flex items-center py-2">
+                <div className="flex-grow border-t border-slate-800"></div>
+                <span className="flex-shrink mx-4 text-slate-600 text-xs font-bold uppercase tracking-widest">ODER</span>
+                <div className="flex-grow border-t border-slate-800"></div>
+              </div>
+
+              <div className="flex gap-2">
+                <input 
+                  value={roomCodeInput} onChange={e => setRoomCodeInput(e.target.value.toUpperCase())}
+                  maxLength={4}
+                  className="w-1/2 bg-slate-800 border-2 border-slate-700 text-white p-4 rounded-2xl focus:outline-none focus:border-blue-500 uppercase text-center font-black tracking-widest text-xl"
+                  placeholder="CODE"
+                />
+                <button onClick={handleJoinRoom} className="w-1/2 bg-slate-700 hover:bg-slate-600 text-white font-black py-4 px-4 rounded-2xl transition-all shadow-lg active:scale-95">
+                  BEITRETEN
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -533,83 +576,87 @@ export default function App() {
     );
   }
 
-  // WAITING ROOM VIEW
   if (roomData.status === 'waiting') {
     const isHost = roomData.hostUid === user.uid;
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-        <div className="bg-slate-800 p-8 rounded-2xl shadow-2xl text-center max-w-md w-full border border-slate-700 relative overflow-hidden">
-          <div className="absolute top-0 right-0 bg-yellow-500 text-slate-900 font-bold px-4 py-1 rounded-bl-lg">
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+        <div className="bg-slate-900 p-8 rounded-3xl shadow-2xl text-center max-w-md w-full border border-slate-800 relative overflow-hidden ring-1 ring-white/10">
+          <div className="absolute top-0 right-0 bg-blue-600 text-white font-black px-6 py-2 rounded-bl-3xl shadow-lg">
             CODE: {roomData.id}
           </div>
-          <h2 className="text-2xl font-bold text-white mb-6 mt-4">Warteraum</h2>
-          
-          <div className="bg-slate-900/50 rounded-lg p-4 mb-6 space-y-2 text-left">
+          <h2 className="text-3xl font-black text-white mb-2 mt-6">Lobby</h2>
+          <p className="text-slate-500 text-[10px] font-bold uppercase mb-6 tracking-widest">Modus: {roomData.targetPlayerCount} Spieler</p>
+          <div className="bg-slate-950/50 rounded-2xl p-6 mb-8 space-y-4 text-left border border-slate-800">
             {roomData.players.map((p, i) => (
-              <div key={i} className="flex justify-between items-center text-slate-300 border-b border-slate-700 pb-2 last:border-0">
-                <span className="font-bold flex items-center">
-                   {p.name} {p.uid === user.uid && <span className="ml-2 text-xs bg-green-800 px-2 py-0.5 rounded text-white">Du</span>}
+              <div key={i} className="flex justify-between items-center text-slate-300 border-b border-slate-800/50 pb-3 last:border-0 last:pb-0">
+                <span className="font-bold flex items-center text-lg">
+                   {p.name} {p.uid === user.uid && <span className="ml-3 text-[10px] bg-blue-500/20 px-2 py-0.5 rounded-full border border-blue-500/30 text-blue-400 font-black uppercase tracking-widest">Du</span>}
                 </span>
-                {p.uid === roomData.hostUid && <span className="text-yellow-400 text-xs uppercase tracking-wider">Host</span>}
+                {p.uid === roomData.hostUid && <span className="bg-yellow-500/10 text-yellow-500 text-[10px] px-2 py-1 rounded-full font-black uppercase tracking-widest border border-yellow-500/20">Host</span>}
               </div>
             ))}
-            {roomData.players.length < 4 && (
-              <div className="text-slate-500 text-sm italic pt-2 text-center animate-pulse">
-                Warte auf weitere Spieler ({roomData.players.length}/4)...
-              </div>
+            {roomData.players.length < roomData.targetPlayerCount && (
+              <p className="text-slate-600 text-center text-xs font-bold pt-4 animate-bounce">Warten auf Spieler ({roomData.players.length}/{roomData.targetPlayerCount})...</p>
             )}
           </div>
-
           {isHost ? (
-            <button 
-              onClick={handleStartGame}
-              className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition-all"
-            >
-              Spiel starten (mit {4 - roomData.players.length} Bots auffüllen)
+            <button onClick={handleStartGame} className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black py-5 px-8 rounded-2xl shadow-2xl transition-all transform hover:scale-[1.02] active:scale-[0.98] text-lg">
+              JETZT STARTEN
             </button>
           ) : (
-            <div className="text-slate-400 text-sm">Warte auf Host, um das Spiel zu starten...</div>
+            <div className="p-4 bg-slate-800/50 rounded-xl text-slate-400 font-bold border border-slate-700 italic">Warte auf Host...</div>
           )}
         </div>
       </div>
     );
   }
 
-  // GAME VIEW
   const gs = roomData.gameState;
   if (!gs) return null;
 
-  // Determine current user's seat (or observer if somehow not in list)
+  const numPlayers = roomData.players.length;
+  const config = getGameConfig(numPlayers);
   const myPlayer = roomData.players.find(p => p.uid === user.uid);
   const mySeat = myPlayer ? myPlayer.seat : 0;
   
-  // UI Rotation mapping
-  const posBottom = mySeat;
-  const posLeft = (mySeat + 1) % 4;
-  const posTop = (mySeat + 2) % 4;
-  const posRight = (mySeat + 3) % 4;
+  const sortedPlayers = [];
+  for (let i = 0; i < numPlayers; i++) {
+    sortedPlayers.push((mySeat + i) % numPlayers);
+  }
 
   const validPlayerCards = gs.phase === 'playing' && gs.currentPlayer === mySeat 
     ? getValidCards(gs.hands[mySeat], gs.trick, gs.trumpCard?.suit) 
     : [];
 
-  const getPlayerLabel = (seatIdx) => {
+  const getOpponentUI = (seatIdx, pos) => {
     const p = roomData.players.find(x => x.seat === seatIdx);
-    if (!p) return `Sitz ${seatIdx}`;
-    return p.uid === user.uid ? 'Du' : p.name;
-  };
+    if (!p || seatIdx === mySeat) return null;
+    const isCurrent = gs.currentPlayer === seatIdx;
 
-  const getOpponentUI = (seatIdx, alignClass) => {
-    const p = roomData.players.find(x => x.seat === seatIdx);
-    if (!p) return null;
+    let positionClasses = "";
+    if (numPlayers === 3) {
+      if (pos === 1) positionClasses = "top-10 left-10 rotate-[30deg]";
+      if (pos === 2) positionClasses = "top-10 right-10 -rotate-[30deg]";
+    } else if (numPlayers === 4) {
+      if (pos === 1) positionClasses = "top-1/2 left-8 -translate-y-1/2 -rotate-90";
+      if (pos === 2) positionClasses = "top-8 left-1/2 -translate-x-1/2";
+      if (pos === 3) positionClasses = "top-1/2 right-8 -translate-y-1/2 rotate-90";
+    } else if (numPlayers === 5) {
+      if (pos === 1) positionClasses = "top-1/2 left-4 -translate-y-1/2 -rotate-90";
+      if (pos === 2) positionClasses = "top-8 left-1/4 -translate-x-1/2 -rotate-15";
+      if (pos === 3) positionClasses = "top-8 right-1/4 translate-x-1/2 rotate-15";
+      if (pos === 4) positionClasses = "top-1/2 right-4 -translate-y-1/2 rotate-90";
+    }
+
     return (
-      <div className={`absolute ${alignClass} flex flex-col items-center`}>
-        <div className="bg-black/60 px-3 py-1 rounded-full text-xs sm:text-sm mb-2 text-center flex items-center space-x-3 backdrop-blur-sm border border-slate-700">
-          <span className={`font-bold ${p.isBot ? 'text-slate-400' : 'text-blue-300'}`}>{p.name}</span>
-          <span className="text-slate-300">Pkt: {gs.scores[seatIdx]}</span>
-          <span className="bg-slate-800 px-2 rounded font-mono">
-            {gs.tricksWon[seatIdx]} / {gs.bids[seatIdx] !== null ? gs.bids[seatIdx] : '?'}
-          </span>
+      <div className={`absolute ${positionClasses} flex flex-col items-center z-10 transition-transform duration-500 ${isCurrent ? 'scale-110' : 'scale-100'}`}>
+        <div className={`px-4 py-2 rounded-2xl text-xs mb-3 text-center flex items-center space-x-4 backdrop-blur-xl border-2 transition-all shadow-2xl
+          ${isCurrent ? 'bg-blue-600 border-white text-white ring-4 ring-blue-500/30' : 'bg-slate-900 border-slate-700 text-slate-300'}`}>
+          <span className="font-black uppercase tracking-wider">{p.name}</span>
+          <div className="flex gap-2">
+            <span className="bg-black/30 px-2 py-0.5 rounded-lg font-mono font-bold text-yellow-400">{gs.scores[seatIdx]}</span>
+            <span className="bg-black/30 px-2 py-0.5 rounded-lg font-mono font-bold text-green-400">{gs.tricksWon[seatIdx]}/{gs.bids[seatIdx] ?? '?'}</span>
+          </div>
         </div>
         <div className="flex">
           {gs.hands[seatIdx].map((_, i) => <React.Fragment key={i}>{renderCardBack()}</React.Fragment>)}
@@ -619,151 +666,104 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-green-900 text-white font-sans flex flex-col overflow-hidden relative selection:bg-transparent">
-      
-      {/* Top Bar */}
-      <div className="bg-slate-900/80 p-2 sm:p-4 flex justify-between items-center shadow-md z-10 backdrop-blur-md">
-        <div>
-          <h1 className="text-lg sm:text-2xl font-bold text-yellow-400 drop-shadow-md">Oh Hell</h1>
-          <div className="text-xs sm:text-sm text-slate-300">
-            Runde {gs.roundIndex + 1} / 26 &nbsp;|&nbsp; {CARDS_PER_ROUND[gs.roundIndex]} Karte(n) &nbsp;|&nbsp; Raum: {roomData.id}
+    <div className="min-h-screen bg-[#073b1e] text-white font-sans flex flex-col overflow-hidden relative selection:bg-transparent bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-[#0c5c2e] via-[#073b1e] to-[#042412]">
+      <div className="absolute inset-0 opacity-10 pointer-events-none" style={{backgroundImage: 'radial-gradient(#fff 1px, transparent 0)', backgroundSize: '40px 40px'}}></div>
+
+      {/* Header */}
+      <div className="bg-black/40 p-3 sm:p-5 flex justify-between items-center shadow-2xl z-30 backdrop-blur-md border-b border-white/5">
+        <div className="flex items-center space-x-6">
+          <div>
+            <h1 className="text-xl sm:text-3xl font-black text-yellow-500 drop-shadow-lg italic">OH HELL!</h1>
+            <div className="text-[10px] sm:text-xs text-slate-400 font-black uppercase tracking-widest mt-1">Runde {gs.roundIndex + 1} / {config.rounds.length}</div>
+          </div>
+          <div className="text-center bg-black/40 px-4 py-1 rounded-xl border border-white/10">
+            <div className="text-[10px] text-slate-500 font-bold uppercase">Trumpf</div>
+            {gs.trumpCard ? (
+               <span className={`text-lg sm:text-2xl font-black ${gs.trumpCard.isJoker ? 'text-purple-400' : (gs.trumpCard.suit === 'hearts' || gs.trumpCard.suit === 'diamonds' ? 'text-red-500' : 'text-slate-200')}`}>
+                 {gs.trumpCard.isJoker ? '🃏' : getSuitSymbol(gs.trumpCard.suit)} <span className="ml-1 font-mono">{gs.trumpCard.rank}</span>
+               </span>
+            ) : <span className="text-slate-600 font-black">-</span>}
           </div>
         </div>
-        
-        <div className="flex items-center space-x-2 sm:space-x-4">
-          <button
-            onClick={() => setShowRules(true)}
-            className="bg-purple-600 hover:bg-purple-500 text-white px-2 py-1 sm:px-3 sm:py-1 rounded text-xs sm:text-sm font-bold shadow transition-colors"
-          >
-            📖 Regeln
-          </button>
-          <button
-            onClick={() => setShowScoreboard(true)}
-            className="bg-blue-600 hover:bg-blue-500 text-white px-2 py-1 sm:px-3 sm:py-1 rounded text-xs sm:text-sm font-bold shadow transition-colors"
-          >
-            📊 Tabelle
-          </button>
-          <div className="text-right">
-            <span className="text-xs text-slate-400 block uppercase tracking-wider">Trumpf</span>
-            <div className="flex items-center bg-white/10 px-2 py-1 rounded">
-              {gs.trumpCard ? (
-                 <span className={`text-base sm:text-xl font-bold ${gs.trumpCard.isJoker ? 'text-purple-400' : (gs.trumpCard.suit === 'hearts' || gs.trumpCard.suit === 'diamonds' ? 'text-red-400' : 'text-slate-300')}`}>
-                   {gs.trumpCard.isJoker ? '🃏 Joker' : `${getSuitSymbol(gs.trumpCard.suit)} ${gs.trumpCard.rank}`}
-                 </span>
-              ) : (
-                <span className="text-slate-300 font-bold">Keiner</span>
-              )}
-            </div>
-          </div>
+
+        <div className="flex items-center space-x-3 sm:space-x-4">
+          <button onClick={() => setShowRules(true)} className="bg-slate-800 hover:bg-slate-700 text-white w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded-2xl shadow-lg transition-all border border-white/10">📖</button>
+          <button onClick={() => setShowScoreboard(true)} className="bg-blue-600 hover:bg-blue-500 text-white font-black px-4 py-2 sm:px-6 sm:py-3 rounded-2xl shadow-xl transition-all border-b-4 border-blue-800 active:border-b-0 active:translate-y-1">📊 TABELLE</button>
         </div>
       </div>
 
-      {/* Main Table Area */}
+      {/* Table Area */}
       <div className="flex-1 relative flex items-center justify-center p-4">
-        
-        {getOpponentUI(posTop, "top-4 left-1/2 -translate-x-1/2")}
-        {getOpponentUI(posLeft, "left-0 sm:left-4 top-1/2 -translate-y-1/2 -rotate-90 origin-center -translate-x-1/4 sm:translate-x-0")}
-        {getOpponentUI(posRight, "right-0 sm:right-4 top-1/2 -translate-y-1/2 rotate-90 origin-center translate-x-1/4 sm:translate-x-0")}
+        {sortedPlayers.map((seatIdx, index) => getOpponentUI(seatIdx, index))}
 
-        {/* Center Trick Area */}
-        <div className="w-64 h-64 sm:w-80 sm:h-80 bg-green-800/40 rounded-full border-4 border-green-700/50 flex items-center justify-center relative shadow-inner">
-          {gs.trick.map((t) => {
+        <div className="w-72 h-72 sm:w-[550px] sm:h-[550px] bg-black/20 rounded-full border-[12px] border-black/30 flex items-center justify-center relative shadow-[inset_0_0_100px_rgba(0,0,0,0.5)]">
+          {gs.trick.map((t, idx) => {
+             const playerSeatPos = sortedPlayers.indexOf(t.playerIndex);
              let posClass = "";
-             if (t.playerIndex === posBottom) posClass = "bottom-4 left-1/2 -translate-x-1/2";
-             if (t.playerIndex === posLeft) posClass = "left-4 top-1/2 -translate-y-1/2 -rotate-12";
-             if (t.playerIndex === posTop) posClass = "top-4 left-1/2 -translate-x-1/2";
-             if (t.playerIndex === posRight) posClass = "right-4 top-1/2 -translate-y-1/2 rotate-12";
+             // Visual positioning of played cards
+             const angle = (playerSeatPos / numPlayers) * 360;
+             const dist = numPlayers > 3 ? 120 : 80;
+             posClass = `absolute`;
              
              return (
-               <div key={t.card.id} className={`absolute ${posClass} transition-all duration-300 drop-shadow-2xl`}>
+               <div 
+                 key={t.card.id} 
+                 className={`${posClass} transition-all duration-500 transform hover:scale-110`}
+                 style={{
+                   transform: `rotate(${angle}deg) translateY(${dist}px) rotate(${-angle}deg) translateX(-50%)`,
+                   left: '50%',
+                   top: '40%'
+                 }}
+               >
                  {renderCard(t.card)}
                </div>
              );
           })}
           {gs.trick.length === 0 && gs.phase === 'playing' && (
-             <div className="text-green-600/50 font-bold uppercase tracking-widest text-lg sm:text-xl text-center px-4">
-               {gs.currentPlayer === mySeat ? "Du bist dran" : `${getPlayerLabel(gs.currentPlayer)} spielt...`}
+             <div className="bg-black/40 px-8 py-4 rounded-3xl border border-white/10 backdrop-blur-lg animate-pulse">
+               <div className="text-yellow-500 font-black uppercase tracking-[0.3em] text-lg sm:text-2xl text-center">
+                 {gs.currentPlayer === mySeat ? "Du bist dran" : "Warten..."}
+               </div>
              </div>
           )}
         </div>
       </div>
 
-      {/* Human Player Bottom */}
-      <div className="bg-slate-900/90 p-4 pb-8 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-20">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex justify-between items-end mb-4">
-            <div className="bg-black/60 px-4 py-2 rounded-lg inline-block border border-slate-700">
-              <span className="font-bold text-green-400 text-lg mr-4">{myPlayer?.name || 'Du'}</span>
-              <span className="text-slate-300 mr-4">Punkte: <span className="text-white font-bold">{gs.scores[mySeat]}</span></span>
-              <span className="bg-green-800/80 px-3 py-1 rounded text-white font-mono">
-                Stiche: {gs.tricksWon[mySeat]} / {gs.bids[mySeat] !== null ? gs.bids[mySeat] : '?'}
-              </span>
+      {/* Player Hand */}
+      <div className="bg-black/60 p-4 pb-10 shadow-[0_-20px_50px_rgba(0,0,0,0.5)] z-40 backdrop-blur-xl border-t border-white/10">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex justify-between items-center mb-6">
+            <div className="flex items-center space-x-4">
+              <div className="bg-gradient-to-r from-green-600 to-green-500 px-6 py-2 rounded-2xl shadow-lg">
+                <span className="font-black text-white text-lg">{myPlayer?.name}</span>
+              </div>
+              <div className="bg-slate-900 px-4 py-2 rounded-2xl border border-white/10 flex space-x-4 font-mono font-bold">
+                <span className="text-yellow-400">PKT: {gs.scores[mySeat]}</span>
+                <span className="text-slate-500">|</span>
+                <span className="text-green-400">STICHE: {gs.tricksWon[mySeat]}/{gs.bids[mySeat] ?? '?'}</span>
+              </div>
             </div>
-            
-            <div className="text-right text-xs sm:text-sm text-yellow-300 font-medium bg-black/40 px-3 py-1 rounded">
-              {gs.message}
-            </div>
+            <div className="text-right text-xs sm:text-sm text-yellow-400 font-black bg-yellow-500/10 px-4 py-2 rounded-xl border border-yellow-500/20 uppercase tracking-widest">{gs.message}</div>
           </div>
 
-          <div className="flex justify-center gap-1 sm:gap-2 flex-wrap">
+          <div className="flex justify-center gap-2 sm:gap-4 flex-wrap px-4 min-h-[120px]">
             {gs.hands[mySeat].map(card => {
               const isPlayable = gs.phase === 'playing' && gs.currentPlayer === mySeat && validPlayerCards.some(c => c.id === card.id);
-              return (
-                <div key={card.id}>
-                  {renderCard(card, isPlayable, () => executePlayCard(mySeat, card))}
-                </div>
-              );
+              return <div key={card.id}>{renderCard(card, isPlayable, () => executePlayCard(mySeat, card))}</div>;
             })}
-            {gs.hands[mySeat].length === 0 && (
-              <div className="h-16 sm:h-28 flex items-center text-slate-500 italic text-sm">Keine Karten</div>
-            )}
           </div>
         </div>
       </div>
 
       {/* Bidding Modal */}
       {gs.phase === 'bidding' && gs.currentPlayer === mySeat && (
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md px-4">
-          <div className="bg-slate-800/95 p-6 rounded-2xl shadow-2xl border border-slate-600 text-center backdrop-blur-md">
-            <h2 className="text-2xl font-bold text-white mb-4">Deine Ansage</h2>
-            
-            {(() => {
-              const biddingOrder = [];
-              let curr = gs.trickLeader;
-              while (curr !== mySeat) {
-                if (gs.bids[curr] !== null) {
-                  biddingOrder.push(curr);
-                }
-                curr = (curr + 1) % 4;
-              }
-              
-              if (biddingOrder.length === 0) {
-                return <p className="text-slate-400 mb-6 text-sm">Du bist als Erster dran mit Ansagen.</p>;
-              }
-              
-              return (
-                <div className="mb-6 text-sm text-slate-300 bg-slate-900/80 p-3 rounded-lg text-left shadow-inner">
-                  <h3 className="font-bold mb-2 text-slate-400 border-b border-slate-700 pb-1">Bisherige Ansagen:</h3>
-                  <ul className="space-y-1">
-                    {biddingOrder.map(pid => (
-                      <li key={pid} className="flex justify-between">
-                        <span>{getPlayerLabel(pid)}</span>
-                        <span className="font-bold text-yellow-400">{gs.bids[pid]} Stich(e)</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              );
-            })()}
-
-            <p className="text-slate-300 mb-4 text-sm">Wie viele Stiche wirst du machen?</p>
-            <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
-              {Array.from({ length: CARDS_PER_ROUND[gs.roundIndex] + 1 }).map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => executeBid(mySeat, i)}
-                  className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-green-600 hover:bg-green-500 text-white font-bold text-lg sm:text-xl shadow-lg transition-transform hover:scale-110"
-                >
+        <div className="absolute inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-md">
+          <div className="bg-slate-900 p-8 rounded-[40px] shadow-2xl border-4 border-blue-500 text-center max-w-lg w-full">
+            <h2 className="text-4xl font-black text-white mb-2 uppercase italic tracking-tighter">Deine Ansage!</h2>
+            <p className="text-slate-400 mb-8 font-bold text-sm uppercase tracking-widest">Wie viele Stiche holst du?</p>
+            <div className="flex flex-wrap justify-center gap-3">
+              {Array.from({ length: config.rounds[gs.roundIndex] + 1 }).map((_, i) => (
+                <button key={i} onClick={() => executeBid(mySeat, i)} className="w-12 h-12 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xl shadow-[0_4px_0_rgb(30,58,138)] active:shadow-none active:translate-y-1 transition-all">
                   {i}
                 </button>
               ))}
@@ -772,65 +772,41 @@ export default function App() {
         </div>
       )}
 
-      {/* Round End Overlay */}
+      {/* End of Round / Finished Overlay */}
       {(gs.phase === 'round_end' || roomData.status === 'finished') && (
         <div className="absolute inset-0 bg-black/80 z-50 flex flex-col items-center justify-center backdrop-blur-md p-4">
-          <div className="bg-slate-800 p-8 rounded-2xl shadow-2xl border border-slate-600 w-full max-w-2xl text-center">
-            <h2 className="text-3xl sm:text-4xl font-bold text-yellow-400 mb-6">
-              {roomData.status === 'finished' ? 'Endstand' : `Auswertung Runde ${gs.roundIndex + 1}`}
+          <div className="bg-slate-900 p-8 rounded-[32px] shadow-2xl border border-slate-700 w-full max-w-2xl text-center">
+            <h2 className="text-3xl sm:text-4xl font-black text-yellow-400 mb-6 uppercase tracking-tighter italic">
+              {roomData.status === 'finished' ? 'ENDERGEBNIS' : 'RUNDEN-AUSWERTUNG'}
             </h2>
-            
-            <div className="overflow-x-auto rounded-lg border border-slate-700">
-              <table className="w-full text-left border-collapse bg-slate-900/50 text-sm sm:text-base">
-                <thead>
-                  <tr className="border-b border-slate-600 text-slate-300 bg-slate-800/80">
-                    <th className="p-3">Spieler</th>
-                    <th className="p-3 text-center">Ansage</th>
-                    <th className="p-3 text-center">Gemacht</th>
-                    <th className="p-3 text-right">Punkte (Gesamt)</th>
-                  </tr>
-                </thead>
+            <div className="overflow-x-auto rounded-2xl border border-slate-800">
+              <table className="w-full text-left border-collapse bg-slate-950/50 text-white">
+                <thead><tr className="bg-slate-800/80"><th className="p-4 text-xs uppercase tracking-widest font-black">Spieler</th><th className="p-4 text-xs uppercase tracking-widest font-black">Ansage</th><th className="p-4 text-xs uppercase tracking-widest font-black text-center">Gemacht</th><th className="p-4 text-xs uppercase tracking-widest font-black text-right">Punkte</th></tr></thead>
                 <tbody>
-                  {[0, 1, 2, 3].map(i => {
-                    const seatIndex = (mySeat + i) % 4; // Render myself first
+                  {sortedPlayers.map(seatIndex => {
                     const p = roomData.players.find(x => x.seat === seatIndex);
                     const bid = gs.bids[seatIndex];
                     const won = gs.tricksWon[seatIndex];
-                    const success = won === bid;
-                    
                     return (
-                      <tr key={seatIndex} className={`border-b border-slate-700/50 ${seatIndex === mySeat ? 'bg-slate-700/40' : ''}`}>
-                        <td className="p-3 font-bold flex items-center space-x-2">
-                           <span className={seatIndex === mySeat ? 'text-green-400' : 'text-slate-200'}>{p?.name}</span>
-                        </td>
-                        <td className="p-3 text-slate-300 text-center">{bid}</td>
-                        <td className="p-3 text-center">
-                          <span className={success ? 'text-green-400 font-bold' : 'text-red-400 font-bold'}>
-                            {won}
-                          </span>
-                        </td>
-                        <td className="p-3 font-mono text-lg font-bold text-right text-yellow-100">
-                          {gs.scores[seatIndex]}
-                        </td>
+                      <tr key={seatIndex} className={`border-b border-slate-800/50 ${seatIndex === mySeat ? 'bg-blue-600/10' : ''}`}>
+                        <td className="p-4 font-bold">{p?.name}</td>
+                        <td className="p-4 text-slate-400">{bid}</td>
+                        <td className={`p-4 text-center font-black ${won === bid ? 'text-green-500' : 'text-red-500'}`}>{won}</td>
+                        <td className="p-4 text-right font-black text-yellow-500">{gs.scores[seatIndex]}</td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
             </div>
-
-            {roomData.status === 'finished' && roomData.hostUid === user.uid && (
-              <button 
-                onClick={() => window.location.reload()}
-                className="mt-8 bg-yellow-500 hover:bg-yellow-400 text-slate-900 font-bold py-3 px-8 rounded-full shadow-lg transition-all text-xl"
-              >
-                Lobby verlassen
-              </button>
-            )}
-            {gs.phase === 'round_end' && (
-               <p className="mt-6 text-slate-400 animate-pulse text-sm sm:text-base">
-                  {roomData.hostUid === user.uid ? "Bereite nächste Runde vor..." : "Warte auf Host für nächste Runde..."}
-               </p>
+            <button 
+              onClick={() => setShowScoreboard(true)}
+              className="mt-6 w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl transition-all"
+            >
+              GESAMTE TABELLE ANSEHEN
+            </button>
+            {roomData.status === 'finished' && (
+              <button onClick={() => window.location.reload()} className="mt-4 text-slate-500 font-bold hover:text-white uppercase text-xs tracking-widest">Spiel verlassen</button>
             )}
           </div>
         </div>
@@ -838,58 +814,34 @@ export default function App() {
 
       {/* Scoreboard Modal */}
       {showScoreboard && (
-        <div className="absolute inset-0 bg-black/95 z-[60] flex flex-col items-center p-2 sm:p-8 backdrop-blur-md overflow-hidden">
-          <div className="bg-slate-800 rounded-xl shadow-2xl border border-slate-600 w-full max-w-6xl flex flex-col h-full max-h-full">
-            <div className="p-4 flex justify-between items-center border-b border-slate-700 shrink-0">
-               <h2 className="text-xl sm:text-2xl font-bold text-white">Gesamtpunktstand</h2>
-               <button onClick={() => setShowScoreboard(false)} className="text-slate-400 hover:text-white text-3xl leading-none">&times;</button>
+        <div className="absolute inset-0 bg-black/95 z-[100] flex flex-col items-center p-4 sm:p-10 backdrop-blur-2xl">
+          <div className="bg-slate-900 rounded-[32px] shadow-2xl border border-slate-700 w-full max-w-6xl flex flex-col h-full overflow-hidden">
+            <div className="p-6 flex justify-between items-center border-b border-slate-800 bg-slate-950/50">
+               <h2 className="text-2xl sm:text-4xl font-black text-white italic">SCOREBOARD</h2>
+               <button onClick={() => setShowScoreboard(false)} className="bg-red-600 text-white w-12 h-12 flex items-center justify-center rounded-2xl font-black text-2xl shadow-lg">&times;</button>
             </div>
-            <div className="p-0 sm:p-4 overflow-auto flex-1 custom-scrollbar">
-              <table className="w-full text-center border-collapse text-xs sm:text-sm min-w-[600px]">
-                <thead className="sticky top-0 bg-slate-900 shadow-md z-10">
+            <div className="p-2 sm:p-6 overflow-auto flex-1 custom-scrollbar">
+              <table className="w-full text-center border-separate border-spacing-y-2">
+                <thead className="sticky top-0 bg-slate-900 z-10">
                   <tr>
-                    <th className="p-2 border border-slate-700 text-slate-300" rowSpan={2}>Runde (Karten)</th>
-                    {[0,1,2,3].map(i => (
-                      <th key={i} className={`p-2 border border-slate-700 ${i===mySeat ? 'text-green-400' : 'text-slate-300'}`} colSpan={3}>{getPlayerLabel(i)}</th>
-                    ))}
-                  </tr>
-                  <tr>
-                    {[0,1,2,3].map(i => (
-                      <React.Fragment key={`sub-${i}`}>
-                        <th className="p-1 border border-slate-700 text-slate-400">Ans.</th>
-                        <th className="p-1 border border-slate-700 text-slate-400">Gem.</th>
-                        <th className="p-1 border border-slate-700 font-bold text-yellow-400">Pkt</th>
-                      </React.Fragment>
-                    ))}
+                    <th className="p-4 text-slate-500 font-black uppercase text-[10px] tracking-widest text-left">Runde</th>
+                    {Array.from({ length: numPlayers }).map((_, i) => <th key={i} className={`p-4 font-black uppercase text-[10px] tracking-widest ${i===mySeat ? 'text-blue-400' : 'text-slate-300'}`} colSpan={3}>{getPlayerLabel(i)}</th>)}
                   </tr>
                 </thead>
                 <tbody>
-                  {CARDS_PER_ROUND.map((cards, rIdx) => {
+                  {config.rounds.map((cards, rIdx) => {
                     const h = gs.scoreHistory.find(x => x.roundIndex === rIdx);
-                    const isCurrent = gs.roundIndex === rIdx;
+                    const isCurr = gs.roundIndex === rIdx;
                     return (
-                      <tr key={rIdx} className={`${isCurrent ? 'bg-slate-700/50 font-bold' : 'hover:bg-slate-700/30'} ${h ? 'text-white' : 'text-slate-500'}`}>
-                        <td className="p-2 border border-slate-700">{rIdx + 1} ({cards})</td>
-                        {[0,1,2,3].map(i => {
-                           if (h) {
-                             const success = h.won[i] >= h.bids[i];
-                             return (
-                               <React.Fragment key={`data-${rIdx}-${i}`}>
-                                 <td className="p-1 border border-slate-700 bg-slate-900/30">{h.bids[i]}</td>
-                                 <td className={`p-1 border border-slate-700 bg-slate-900/30 ${success ? 'text-green-400' : 'text-red-400'}`}>{h.won[i]}</td>
-                                 <td className="p-1 border border-slate-700 font-mono font-bold text-yellow-200">{h.scores[i]}</td>
-                               </React.Fragment>
-                             )
-                           } else {
-                             return (
-                               <React.Fragment key={`empty-${rIdx}-${i}`}>
-                                 <td className="p-1 border border-slate-700 bg-slate-900/30">-</td>
-                                 <td className="p-1 border border-slate-700 bg-slate-900/30">-</td>
-                                 <td className="p-1 border border-slate-700">-</td>
-                               </React.Fragment>
-                             )
-                           }
-                        })}
+                      <tr key={rIdx} className={`rounded-xl overflow-hidden ${isCurr ? 'bg-blue-600/20' : 'bg-slate-950/30'}`}>
+                        <td className="p-4 text-left font-black text-slate-400 border-l-4 border-slate-700">{rIdx + 1} ({cards})</td>
+                        {Array.from({ length: numPlayers }).map((_, i) => h ? (
+                          <React.Fragment key={i}>
+                            <td className="p-3 bg-black/20 text-slate-500 text-xs">{h.bids[i]}</td>
+                            <td className={`p-3 bg-black/20 font-black text-xs ${h.won[i] === h.bids[i] ? 'text-green-500' : 'text-red-500'}`}>{h.won[i]}</td>
+                            <td className="p-3 bg-black/40 font-black text-yellow-500 text-xs border-r border-slate-800">{h.scores[i]}</td>
+                          </React.Fragment>
+                        ) : <td key={i} className="p-3 bg-black/10 text-slate-800" colSpan={3}>-</td>)}
                       </tr>
                     );
                   })}
@@ -902,41 +854,24 @@ export default function App() {
 
       {/* Rules Modal */}
       {showRules && (
-        <div className="absolute inset-0 bg-black/95 z-[60] flex flex-col items-center justify-center p-4 backdrop-blur-md">
-          <div className="bg-slate-800 rounded-xl shadow-2xl border border-slate-600 w-full max-w-2xl flex flex-col max-h-[90vh]">
-            <div className="p-4 flex justify-between items-center border-b border-slate-700 shrink-0">
-               <h2 className="text-xl sm:text-2xl font-bold text-white">📖 Spielregeln</h2>
-               <button onClick={() => setShowRules(false)} className="text-slate-400 hover:text-white text-3xl leading-none">&times;</button>
+        <div className="absolute inset-0 bg-black/95 z-[100] flex flex-col items-center justify-center p-4 backdrop-blur-2xl">
+          <div className="bg-slate-900 rounded-[32px] shadow-2xl border border-slate-700 w-full max-w-2xl flex flex-col max-h-[85vh] overflow-hidden">
+            <div className="p-6 bg-slate-950/50 flex justify-between items-center border-b border-slate-700 text-white">
+               <h2 className="text-3xl font-black italic">REGELN</h2>
+               <button onClick={() => setShowRules(false)} className="bg-red-600 text-white w-10 h-10 flex items-center justify-center rounded-xl font-black">&times;</button>
             </div>
-            <div className="p-6 overflow-auto custom-scrollbar text-slate-300 space-y-4 text-sm sm:text-base">
-              <p><strong>Ziel:</strong> Sage vor jeder Runde exakt voraus, wie viele Stiche du machen wirst.</p>
-              
-              <h3 className="text-yellow-400 font-bold mt-4 border-b border-slate-700 pb-1">Ablauf</h3>
-              <ul className="list-disc pl-5 space-y-1">
-                <li>Es werden 26 Runden gespielt (Kartenanzahl: 1 bis 13, dann 13 bis 1).</li>
-                <li>Die restliche oberste Karte bestimmt die <strong>Trumpffarbe</strong>.</li>
-              </ul>
-
-              <h3 className="text-yellow-400 font-bold mt-4 border-b border-slate-700 pb-1">Ausspielen & Stechen</h3>
-              <ul className="list-disc pl-5 space-y-1">
-                <li><strong>Bedienpflicht:</strong> Die angespielte Farbe MUSS bedient werden.</li>
-                <li>Kannst du nicht bedienen, kannst du Trumpf legen oder eine andere Karte abwerfen.</li>
-                <li><strong>Überbietzwang:</strong> Wird Trumpf (oder ein Joker) angespielt, MUSST du mit einem höheren Trumpf überbieten, falls du einen hast.</li>
-                <li><strong>Joker:</strong> Joker sind die höchsten Trümpfe. Liegen zwei Joker im selben Stich, gewinnt der zuerst gelegte Joker.</li>
-              </ul>
-
-              <h3 className="text-yellow-400 font-bold mt-4 border-b border-slate-700 pb-1">Punkte</h3>
-              <ul className="list-disc pl-5 space-y-1">
-                <li><strong>Ansage exakt getroffen:</strong> 10 Punkte + 1 Punkt pro gemachtem Stich.</li>
-                <li><strong>Ansage 0 getroffen:</strong> 10 Punkte.</li>
-                <li><strong>Ansage verfehlt (zu viel/zu wenig):</strong> -10 Punkte pro <em>angesagtem</em> Stich.</li>
-                <li><strong>0 angesagt, aber Stiche gemacht:</strong> -10 Punkte pro <em>gemachtem</em> Stich.</li>
-              </ul>
+            <div className="p-8 overflow-auto text-slate-300 space-y-6 text-sm sm:text-base">
+              <div className="bg-blue-600/10 p-4 rounded-2xl border border-blue-500/20">
+                <p className="font-bold text-blue-400 uppercase tracking-widest text-xs mb-2">Spieleranzahl & Karten</p>
+                <p><strong>3 Spieler:</strong> Karten 2, 3 und 4 werden entfernt. 26 Runden.</p>
+                <p><strong>4 Spieler:</strong> Normales Deck. 26 Runden.</p>
+                <p><strong>5 Spieler:</strong> Normales Deck. 20 Runden (1-10, 10-1).</p>
+              </div>
+              <p>Triff deine Ansage exakt, um 10 Punkte Bonus zu erhalten. Wer am Ende die meisten Punkte hat, gewinnt!</p>
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 }
