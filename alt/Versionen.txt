@@ -1,0 +1,4 @@
+V1:
+- 4 Spieler
+- Regeln, Zählen, Tabelle funktioniert
+- kein Zugriff auf Tabelle am Ende
