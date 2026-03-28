@@ -69,10 +69,46 @@ const isTrumpCard = (card, trumpSuit) => card?.isJoker || (trumpSuit && card?.su
 
 const getValidCards = (hand, trick, trumpSuit) => {
   if (trick.length === 0) return hand; 
+
   const ledCard = trick[0].card;
+  const isTrumpLed = ledCard.isJoker || (trumpSuit && ledCard.suit === trumpSuit);
   const ledSuit = ledCard.isJoker ? trumpSuit : ledCard.suit;
+
   const sameSuitCards = hand.filter(c => !c.isJoker && c.suit === ledSuit);
-  if (sameSuitCards.length > 0) return [...sameSuitCards, ...hand.filter(c => c.isJoker)];
+
+  if (isTrumpLed) {
+    const trumpsInHand = hand.filter(c => c.isJoker || (trumpSuit && c.suit === trumpSuit));
+    if (trumpsInHand.length > 0) {
+      let highestTrumpVal = -1;
+      trick.forEach((t, idx) => {
+        if (t.card.isJoker || (trumpSuit && t.card.suit === trumpSuit)) {
+          let val = t.card.isJoker ? (trick.findIndex(x => x.card.isJoker) === idx ? 2000 : 1000) : 100 + t.card.rankValue;
+          if (val > highestTrumpVal) highestTrumpVal = val;
+        }
+      });
+      const betterTrumps = trumpsInHand.filter(c => (c.isJoker ? 2000 : 100 + c.rankValue) > highestTrumpVal);
+      return betterTrumps.length > 0 ? betterTrumps : trumpsInHand;
+    }
+    return hand;
+  }
+
+  if (sameSuitCards.length > 0) {
+    return sameSuitCards;
+  }
+
+  const trumpsOrJokers = hand.filter(c => c.isJoker || (trumpSuit && c.suit === trumpSuit));
+  if (trumpsOrJokers.length > 0) {
+    let highestTrumpValInTrick = -1;
+    trick.forEach((t, idx) => {
+      if (t.card.isJoker || (trumpSuit && t.card.suit === trumpSuit)) {
+        let val = t.card.isJoker ? (trick.findIndex(x => x.card.isJoker) === idx ? 2000 : 1000) : 100 + t.card.rankValue;
+        if (val > highestTrumpValInTrick) highestTrumpValInTrick = val;
+      }
+    });
+    const betterTrumps = trumpsOrJokers.filter(c => (c.isJoker ? 2000 : 100 + c.rankValue) > highestTrumpValInTrick);
+    return betterTrumps.length > 0 ? betterTrumps : trumpsOrJokers;
+  }
+
   return hand;
 };
 
@@ -114,10 +150,13 @@ const generateRoundState = (rIndex, dealerIndex, numPlayers) => {
   const deck = createDeck(config.ranks);
   const numCards = config.cardsPerRound[rIndex];
   const newHands = Array.from({ length: numPlayers }, () => []);
+  
+  // Zuerst Karten austeilen
   for (let i = 0; i < numPlayers; i++) {
     for (let c = 0; c < numCards; c++) newHands[i].push(deck.pop());
-    newHands[i].sort((a, b) => (a.suit === b.suit ? a.rankValue - b.rankValue : a.suit.localeCompare(b.suit)));
   }
+
+  // Trumpf bestimmen
   let trump = null;
   if (deck.length > 0) {
     trump = deck.pop();
@@ -126,6 +165,28 @@ const generateRoundState = (rIndex, dealerIndex, numPlayers) => {
       if (trump.isJoker) trump = null;
     }
   }
+
+  const trumpSuit = trump?.suit || null;
+  // Abwechselnde Farbreihenfolge: Schwarz (Clubs), Rot (Diamonds), Schwarz (Spades), Rot (Hearts)
+  const alternatingSuitOrder = ['clubs', 'diamonds', 'spades', 'hearts'];
+
+  const getSortPriority = (card) => {
+    if (card.isJoker) return -2; // Joker ganz links
+    if (card.suit === trumpSuit) return -1; // Trumpf direkt nach Jokern
+    const suitIdx = alternatingSuitOrder.indexOf(card.suit);
+    return suitIdx !== -1 ? suitIdx : 99;
+  };
+
+  // Hände sortieren
+  for (let i = 0; i < numPlayers; i++) {
+    newHands[i].sort((a, b) => {
+      const prioA = getSortPriority(a);
+      const prioB = getSortPriority(b);
+      if (prioA !== prioB) return prioA - prioB;
+      return a.rankValue - b.rankValue;
+    });
+  }
+
   const startPlayer = (dealerIndex + 1) % numPlayers;
   return {
     roundIndex: rIndex,
@@ -189,6 +250,7 @@ export default function App() {
     const gs = roomData.gameState;
     if (!gs) return;
     clearTimeout(timerRef.current);
+    const numPlayers = roomData.players.length;
     const isBot = roomData.players.find(p => p.seat === gs.currentPlayer)?.isBot;
     if (gs.phase === 'bidding' && isBot) {
       timerRef.current = setTimeout(() => executeBid(gs.currentPlayer, Math.floor(Math.random() * (gs.hands[gs.currentPlayer].length / 2.5 + 1))), 1500);
@@ -259,8 +321,16 @@ export default function App() {
     const gs = JSON.parse(JSON.stringify(roomData.gameState));
     gs.bids[idx] = bid;
     const next = (gs.currentPlayer + 1) % roomData.players.length;
-    if (next === gs.trickLeader) { gs.phase = 'playing'; gs.message = 'Spiel!'; }
-    else { gs.currentPlayer = next; gs.message = `${roomData.players[next].name} sagt an.`; }
+    
+    if (next === gs.trickLeader) { 
+      gs.phase = 'playing'; 
+      gs.currentPlayer = gs.trickLeader; 
+      gs.message = 'Spiel!'; 
+    }
+    else { 
+      gs.currentPlayer = next; 
+      gs.message = `${roomData.players[next].name} sagt an.`; 
+    }
     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId), { gameState: JSON.stringify(gs) });
   };
 
@@ -309,25 +379,33 @@ export default function App() {
     </div>
   );
 
+  const getWonColor = (won, bid) => {
+    if (won === bid) return 'text-green-500'; 
+    if (bid === 0 && won > 0) return 'text-red-500'; 
+    if (won > bid) return 'text-blue-400';    
+    if (won < bid) return 'text-red-500';     
+    return 'text-white';
+  };
+
   if (!user) return <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white p-8"><div className="animate-spin h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full mb-4"></div><p className="font-bold">Verbinde...</p></div>;
 
   if (!roomData) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-        <div className="bg-slate-900 p-8 rounded-3xl shadow-2xl text-center max-w-md w-full border border-slate-800 text-white text-left">
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 text-white">
+        <div className="bg-slate-900 p-8 rounded-3xl shadow-2xl text-center max-w-md w-full border border-slate-800">
           <h1 className="text-4xl font-black text-yellow-500 mb-6 italic tracking-tight uppercase text-center">Oh Hell!</h1>
           <div className="space-y-4">
              <div>
-                <label className="text-[10px] uppercase font-black text-slate-400 ml-1">Dein Name</label>
+                <label className="text-[10px] uppercase font-black text-slate-400 ml-1 text-left block">Dein Name</label>
                 <input value={userName} onChange={e => setUserName(e.target.value)} className="w-full bg-slate-800 border-2 border-slate-700 text-white p-3 rounded-xl outline-none focus:border-blue-500 font-bold mt-1" placeholder="Name..." />
              </div>
-             <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
+             <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 text-center">
                 <p className="text-[10px] uppercase font-black text-slate-400 mb-3 tracking-widest text-center">Spieleranzahl</p>
                 <div className="flex justify-center gap-4">
                    {[3, 4, 5].map(n => <button key={n} onClick={() => setTargetPlayerCount(n)} className={`w-12 h-12 rounded-lg font-black transition-all ${targetPlayerCount === n ? 'bg-blue-600 text-white shadow-lg scale-110' : 'bg-slate-700 text-slate-400'}`}>{n}</button>)}
                 </div>
              </div>
-             <button onClick={handleCreateRoom} className="w-full bg-green-600 font-black py-4 rounded-xl shadow-lg hover:bg-green-500 transition-all uppercase text-white">Raum Erstellen</button>
+             <button onClick={handleCreateRoom} className="w-full bg-green-600 font-black py-4 rounded-xl shadow-lg hover:bg-green-500 transition-all mb-4 uppercase text-white">Raum Erstellen</button>
              <div className="flex gap-2">
                <input value={roomCodeInput} onChange={e => setRoomCodeInput(e.target.value.toUpperCase())} className="w-2/3 bg-slate-800 border border-slate-700 text-white p-4 rounded-xl text-center font-black tracking-widest" placeholder="CODE" />
                <button onClick={handleJoinRoom} className="w-1/3 bg-slate-700 font-black rounded-xl uppercase text-xs text-white">Beitreten</button>
@@ -340,14 +418,14 @@ export default function App() {
 
   if (roomData.status === 'waiting') {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-        <div className="bg-slate-900 p-8 rounded-3xl shadow-2xl text-center max-w-sm w-full relative border border-slate-800 text-white text-left">
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 text-white">
+        <div className="bg-slate-900 p-8 rounded-3xl shadow-2xl text-center max-w-sm w-full relative border border-slate-800">
           <div className="absolute top-0 right-0 bg-yellow-500 text-slate-900 font-black px-4 py-1 rounded-bl-xl">{roomData.id}</div>
           <h2 className="text-2xl font-black mb-6 mt-4 uppercase">Warteraum</h2>
           <div className="space-y-3 mb-8">
-            {roomData.players.map(p => (
-              <div key={p.uid} className="bg-slate-950/50 p-4 rounded-xl border border-slate-800 font-bold flex justify-between items-center text-white">
-                <span>{p.name} {p.uid === roomData.hostUid && "👑"}</span>
+            {roomData.players.map((p, i) => (
+              <div key={`waiting-p-${p.uid}`} className="bg-slate-950/50 p-4 rounded-xl border border-slate-800 font-bold flex justify-between items-center text-white">
+                <span className="text-white">{p.name} {p.uid === roomData.hostUid && "👑"}</span>
                 {p.uid === user.uid && <span className="text-[10px] bg-blue-600/40 text-blue-100 px-2 py-1 rounded uppercase">Du</span>}
               </div>
             ))}
@@ -380,7 +458,7 @@ export default function App() {
                 {gs.trumpCard ? (gs.trumpCard.isJoker ? '🃏' : getSuitSymbol(gs.trumpCard.suit) + gs.trumpCard.rank) : '-'}
               </p>
            </div>
-           <button onClick={() => setShowRules(true)} className="bg-slate-800 w-10 h-10 flex items-center justify-center rounded-xl font-black shadow-lg">📖</button>
+           <button onClick={() => setShowRules(true)} className="bg-slate-800 w-10 h-10 flex items-center justify-center rounded-xl font-black shadow-lg text-white">📖</button>
            <button onClick={() => setShowScoreboard(true)} className="bg-blue-600 font-black px-4 py-2 rounded-xl border-b-4 border-blue-800 uppercase text-xs tracking-widest text-white shadow-lg">📊 Tabelle</button>
         </div>
       </div>
@@ -393,7 +471,7 @@ export default function App() {
           const angle = (i / num) * 360 + 180;
           return (
             <div key={`player-${seat}`} className="absolute flex flex-col items-center z-10 transition-all duration-500" style={{ transform: `rotate(${angle}deg) translateY(-220px) rotate(${-angle}deg)` }}>
-              <div className={`px-3 py-1 rounded-full text-[10px] font-black shadow-xl border backdrop-blur-md transition-all ${gs.currentPlayer === seat ? 'bg-blue-600 border-white scale-110' : 'bg-black/60 border-slate-700 text-slate-300'}`}>
+              <div className={`px-3 py-1 rounded-full text-[10px] font-black shadow-xl border backdrop-blur-md transition-all ${gs.currentPlayer === seat ? 'bg-blue-600 border-white scale-110 text-white' : 'bg-black/60 border-slate-700 text-slate-300'}`}>
                 {p?.name} <span className="ml-2 font-mono text-yellow-400">Pkt: {gs.scores[seat]}</span> <span className="ml-1 text-white opacity-50">|</span> <span className="ml-1 font-mono text-green-400">{gs.tricksWon[seat]} / {gs.bids[seat] ?? '?'}</span>
               </div>
               <div className="flex -space-x-4 mt-2">
@@ -404,7 +482,7 @@ export default function App() {
         })}
 
         {/* Trick Area */}
-        <div className="w-64 h-64 sm:w-96 sm:h-96 bg-black/10 rounded-full border-[10px] border-black/30 relative flex items-center justify-center shadow-[inset_0_0_100px_rgba(0,0,0,0.4)]">
+        <div className="w-64 h-64 sm:w-[32rem] sm:h-[32rem] bg-black/10 rounded-full border-[10px] border-black/30 relative flex items-center justify-center shadow-[inset_0_0_100px_rgba(0,0,0,0.4)]">
           {gs.trick.map((t) => {
             const angleIdx = sortedSeats.indexOf(t.playerIndex);
             const angle = (angleIdx / num) * 360 + 180;
@@ -415,12 +493,11 @@ export default function App() {
             );
           })}
 
-          {/* Bidding Overlay in der Tischmitte */}
+          {/* Bidding Overlay */}
           {gs.phase === 'bidding' && gs.currentPlayer === mySeat && (
             <div className="bg-slate-900/95 p-4 sm:p-6 rounded-[2rem] border-2 border-blue-500 shadow-2xl z-50 text-center animate-in zoom-in duration-300 max-w-[320px]">
                <p className="text-xs font-black uppercase text-blue-400 mb-2 tracking-tighter leading-none">Deine Ansage!</p>
                
-               {/* Ansage-Historie */}
                {(() => {
                   const biddingOrder = [];
                   let curr = gs.trickLeader;
@@ -432,7 +509,7 @@ export default function App() {
                     return (
                       <div className="mb-4 bg-black/40 rounded-xl p-2 text-left space-y-1">
                         {biddingOrder.map(pid => (
-                          <div key={`history-${pid}`} className="flex justify-between text-[10px] font-bold">
+                          <div key={`history-${pid}`} className="flex justify-between text-[10px] font-bold text-white">
                             <span className="text-slate-400">{roomData.players.find(x => x.seat === pid)?.name}</span>
                             <span className="text-yellow-500">{gs.bids[pid]} Stich(e)</span>
                           </div>
@@ -440,36 +517,36 @@ export default function App() {
                       </div>
                     );
                   }
-                  return <p className="text-[10px] text-slate-500 mb-4 italic">Du bist als Erster dran.</p>;
+                  return <p className="text-[10px] text-slate-500 mb-4 italic text-white">Du bist als Erster dran.</p>;
                })()}
 
                <div className="flex flex-wrap justify-center gap-2">
                   {Array.from({ length: config.cardsPerRound[gs.roundIndex] + 1 }).map((_, i) => (
-                    <button key={`bid-${i}`} onClick={() => executeBid(mySeat, i)} className="w-9 h-9 sm:w-11 sm:h-11 bg-blue-600 rounded-xl font-black text-sm hover:bg-blue-500 transition-all shadow-[0_4px_0_rgb(30,58,138)] active:translate-y-1 text-white">{i}</button>
+                    <button key={`bid-btn-${i}`} onClick={() => executeBid(mySeat, i)} className="w-9 h-9 sm:w-11 sm:h-11 bg-blue-600 rounded-xl font-black text-sm hover:bg-blue-500 transition-all shadow-[0_4px_0_rgb(30,58,138)] active:translate-y-1 text-white">{i}</button>
                   ))}
                </div>
             </div>
           )}
 
           {gs.phase === 'playing' && gs.currentPlayer === mySeat && gs.trick.length < num && (
-            <div className="bg-yellow-500 text-black px-6 py-2 rounded-full font-black text-sm animate-bounce shadow-2xl uppercase">Du bist dran</div>
+            <div className="bg-yellow-500 text-black px-6 py-2 rounded-full font-black text-sm animate-bounce shadow-2xl uppercase text-white">Du bist dran</div>
           )}
         </div>
       </div>
 
       {/* Spieler-Panel Unten */}
       <div className="bg-black/70 p-4 pb-10 shadow-[0_-20px_50px_rgba(0,0,0,0.5)] z-30 border-t border-white/10 backdrop-blur-xl">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex justify-between items-center mb-6">
-             <div className="flex items-center space-x-4">
-                <div className="bg-gradient-to-r from-green-600 to-green-500 px-5 py-1.5 rounded-xl font-black shadow-xl border border-green-400/20 text-white uppercase text-xs tracking-widest">Ich ({myPlayer?.name})</div>
-                <div className="bg-slate-900/80 px-4 py-1.5 rounded-xl border border-white/5 font-mono font-bold text-xs">
+        <div className="max-w-4xl mx-auto text-white">
+          <div className="flex justify-between items-center mb-6 text-white">
+             <div className="flex items-center space-x-4 text-white">
+                <div className="bg-gradient-to-r from-green-600 to-green-500 px-5 py-1.5 rounded-xl font-black shadow-xl border border-green-400/20 text-white uppercase text-xs tracking-widest text-white">Ich ({myPlayer?.name})</div>
+                <div className="bg-slate-900/80 px-4 py-1.5 rounded-xl border border-white/5 font-mono font-bold text-xs text-white">
                   PKT: <span className="text-yellow-400">{gs.scores[mySeat]}</span> &nbsp;|&nbsp; STICHE: <span className="text-green-400">{gs.tricksWon[mySeat]}</span> / {gs.bids[mySeat] ?? '?'}
                 </div>
              </div>
              <div className="text-[10px] sm:text-xs font-bold text-yellow-500 bg-yellow-500/10 px-4 py-1.5 rounded-full border border-yellow-500/20">{gs.message}</div>
           </div>
-          <div className="flex justify-center gap-1.5 sm:gap-3 overflow-x-auto pb-4 min-h-[100px] px-2">
+          <div className="flex justify-center gap-1.5 sm:gap-3 overflow-x-auto pb-4 min-h-[100px] px-2 text-white">
             {gs.hands[mySeat].map(c => {
                const valid = getValidCards(gs.hands[mySeat], gs.trick, gs.trumpCard?.suit);
                const playable = gs.phase === 'playing' && gs.currentPlayer === mySeat && valid.some(v => v.id === c.id);
@@ -479,22 +556,69 @@ export default function App() {
         </div>
       </div>
 
-      {/* Scoreboard Overlay */}
-      {(showScoreboard || roomData.status === 'finished' || gs.phase === 'round_end') && (
-        <div className="absolute inset-0 bg-black/95 z-[100] flex flex-col items-center p-4 sm:p-10 backdrop-blur-3xl overflow-hidden">
-          <div className="bg-slate-900 rounded-[2.5rem] shadow-2xl border border-slate-700 w-full max-w-5xl flex flex-col h-full overflow-hidden text-white">
-            <div className="p-6 flex justify-between items-center border-b border-slate-800 bg-slate-950/50">
-               <h2 className="text-2xl sm:text-3xl font-black italic tracking-tighter uppercase text-white">Scoreboard</h2>
-               {roomData.status !== 'finished' && gs.phase !== 'round_end' && (
-                 <button onClick={() => setShowScoreboard(false)} className="bg-red-600 text-white w-10 h-10 flex items-center justify-center rounded-2xl font-black text-2xl shadow-xl transition-all hover:bg-red-500 text-white">&times;</button>
-               )}
+      {/* Endergebnis / Runden-Auswertung Overlay */}
+      {(gs.phase === 'round_end' || roomData.status === 'finished') && (
+        <div className="absolute inset-0 bg-black/90 z-[100] flex flex-col items-center justify-center backdrop-blur-xl p-4">
+          <div className="bg-slate-900 p-8 rounded-[40px] shadow-2xl border border-slate-700 w-full max-w-2xl text-center">
+            <h2 className="text-3xl sm:text-4xl font-black text-yellow-500 mb-8 uppercase italic tracking-tighter">
+              {roomData.status === 'finished' ? 'ENDERGEBNIS' : `AUSWERTUNG RUNDE ${gs.roundIndex + 1}`}
+            </h2>
+            <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/50 text-white">
+              <table className="w-full text-left border-collapse text-xs sm:text-base">
+                <thead>
+                  <tr className="bg-slate-800/80 text-slate-400 font-black uppercase text-[10px] tracking-widest">
+                    <th className="p-4">Spieler</th>
+                    <th className="p-4 text-center">Soll</th>
+                    <th className="p-4 text-center">Ist</th>
+                    <th className="p-4 text-right">Gesamt</th>
+                  </tr>
+                </thead>
+                <tbody className="font-bold">
+                  {sortedSeats.map(seatIndex => {
+                    const p = roomData.players.find(x => x.seat === seatIndex);
+                    const bid = gs.bids[seatIndex];
+                    const won = gs.tricksWon[seatIndex];
+                    return (
+                      <tr key={`result-row-${seatIndex}`} className={`border-b border-slate-800/50 ${seatIndex === mySeat ? 'bg-blue-600/10' : ''}`}>
+                        <td className="p-4 font-black text-white">{p?.name}</td>
+                        <td className="p-4 text-slate-400 text-center">{bid}</td>
+                        <td className="p-4 text-center"><span className={getWonColor(won, bid)}>{won}</span></td>
+                        <td className="p-4 font-mono text-right text-yellow-500">{gs.scores[seatIndex]}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-            <div className="p-4 sm:p-6 overflow-auto flex-1 custom-scrollbar text-white">
-              <table className="w-full text-center border-separate border-spacing-y-2">
+
+            <div className="flex flex-wrap gap-4 justify-center mt-10">
+              {roomData.status === 'finished' ? (
+                <>
+                  <button onClick={() => setShowScoreboard(true)} className="bg-blue-600 text-white font-black py-4 px-8 rounded-2xl shadow-2xl hover:bg-blue-500 transition-all uppercase tracking-widest text-sm transform hover:scale-105">Tabelle ansehen</button>
+                  <button onClick={() => window.location.reload()} className="bg-white text-black font-black py-4 px-12 rounded-2xl shadow-2xl hover:bg-slate-200 transition-all uppercase tracking-widest text-sm transform hover:scale-105">Hauptmenü</button>
+                </>
+              ) : (
+                <p className="text-slate-600 font-black text-xs uppercase tracking-widest animate-pulse italic">Nächste Runde wird vorbereitet...</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Scoreboard Overlay (Höchster Z-Index) */}
+      {showScoreboard && (
+        <div className="absolute inset-0 bg-black/98 z-[110] flex flex-col items-center p-2 sm:p-8 backdrop-blur-2xl text-white">
+          <div className="bg-slate-900 rounded-[40px] shadow-2xl border border-slate-700 w-full max-w-6xl flex flex-col h-full overflow-hidden text-white">
+            <div className="p-6 flex justify-between items-center border-b border-slate-800 bg-slate-950/50 text-white">
+               <h2 className="text-2xl sm:text-3xl font-black italic tracking-tighter uppercase text-white">Scoreboard</h2>
+               <button onClick={() => setShowScoreboard(false)} className="bg-red-600 text-white w-10 h-10 flex items-center justify-center rounded-2xl font-black text-2xl shadow-xl transition-all hover:bg-red-500">&times;</button>
+            </div>
+            <div className="p-4 sm:p-6 overflow-auto flex-1 custom-scrollbar text-white text-left">
+              <table className="w-full text-center border-separate border-spacing-y-2 text-white">
                 <thead className="sticky top-0 bg-slate-900 z-10 shadow-sm text-white">
-                  <tr className="text-slate-400 uppercase font-black text-[10px] tracking-widest">
-                    <th className="p-3 text-left">Rd</th>
-                    {roomData.players.map(p => <th key={`header-${p.uid}`} className="p-3" colSpan={3}>{p.name}</th>)}
+                  <tr className="text-slate-400 uppercase font-black text-[10px] tracking-widest text-white">
+                    <th className="p-3 text-left text-white">Rd</th>
+                    {roomData.players.map(p => <th key={`header-p-${p.uid}`} className="p-3 text-white" colSpan={3}>{p.name}</th>)}
                   </tr>
                 </thead>
                 <tbody className="font-mono text-[10px] sm:text-xs text-white">
@@ -502,14 +626,14 @@ export default function App() {
                     const h = gs.scoreHistory.find(x => x.roundIndex === ri);
                     return (
                       <tr key={`round-row-${ri}`} className={`rounded-xl transition-colors ${gs.roundIndex === ri ? 'bg-blue-600/20 ring-2 ring-blue-500/50' : 'bg-slate-950/40 hover:bg-white/5'}`}>
-                        <td className="p-3 text-left font-black text-slate-400 bg-black/20 rounded-l-xl">{ri + 1} ({cardCount})</td>
+                        <td className="p-3 text-left font-black text-slate-400 bg-black/20 rounded-l-xl text-white">{ri + 1} ({cardCount})</td>
                         {Array.from({ length: num }).map((_, pi) => {
-                           if (!h) return <td key={`round-${ri}-player-${pi}`} colSpan={3} className="p-3 text-slate-800 italic">-</td>;
+                           if (!h) return <td key={`round-${ri}-p-${pi}`} colSpan={3} className="p-3 text-slate-800 italic">-</td>;
                            return (
-                             <React.Fragment key={`round-${ri}-player-${pi}-data`}>
-                               <td className="p-2 text-slate-400 bg-black/5">{h.bids[pi]}</td>
-                               <td className={`p-2 font-black ${h.won[pi] === h.bids[pi] ? 'text-green-500' : 'text-red-500/70'}`}>{h.won[pi]}</td>
-                               <td className="p-2 font-black text-yellow-400 bg-black/20 border-r border-slate-800/30 last:border-0">{h.scores[pi]}</td>
+                             <React.Fragment key={`round-${ri}-p-${pi}-data`}>
+                               <td className="p-2 text-slate-400 bg-black/5 text-white">{h.bids[pi]}</td>
+                               <td className={`p-2 font-black ${getWonColor(h.won[pi], h.bids[pi])}`}>{h.won[pi]}</td>
+                               <td className="p-2 font-black text-yellow-400 bg-black/20 border-r border-slate-800/30 last:border-0 text-white">{h.scores[pi]}</td>
                              </React.Fragment>
                            );
                         })}
@@ -517,17 +641,11 @@ export default function App() {
                     );
                   })}
                   <tr className="bg-blue-600 font-black text-sm sm:text-base text-white sticky bottom-0 shadow-2xl border-t-4 border-blue-400">
-                    <td className="p-4 text-left rounded-l-2xl uppercase italic">Gesamt</td>
-                    {gs.scores.map((s, si) => <td key={`total-${si}`} colSpan={3} className={`p-4 ${si === num-1 ? 'rounded-r-2xl' : ''} text-yellow-300`}>{s} PKT</td>)}
+                    <td className="p-4 text-left rounded-l-2xl uppercase italic text-white">Gesamt</td>
+                    {gs.scores.map((s, si) => <td key={`total-score-${si}`} colSpan={3} className={`p-4 ${si === num-1 ? 'rounded-r-2xl' : ''} text-yellow-300 text-white`}>{s} PKT</td>)}
                   </tr>
                 </tbody>
               </table>
-              {roomData.status === 'finished' && (
-                <div className="mt-10 text-center animate-in slide-in-from-bottom duration-700">
-                   <h3 className="text-4xl font-black text-yellow-500 mb-6 italic tracking-tighter uppercase">Spiel Beendet!</h3>
-                   <button onClick={() => window.location.reload()} className="bg-white text-black font-black px-12 py-4 rounded-2xl shadow-2xl hover:bg-slate-200 transition-all uppercase tracking-widest text-sm transform hover:scale-105">Neues Spiel</button>
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -537,20 +655,21 @@ export default function App() {
       {showRules && (
         <div className="absolute inset-0 bg-black/95 z-[100] flex flex-col items-center justify-center p-4 backdrop-blur-3xl text-white">
           <div className="bg-slate-900 rounded-[32px] shadow-2xl border border-slate-700 w-full max-w-2xl flex flex-col max-h-[85vh] overflow-hidden text-white">
-            <div className="p-6 bg-slate-950/50 flex justify-between items-center border-b border-slate-800 text-white text-white">
-               <h2 className="text-2xl font-black italic uppercase tracking-widest text-white text-white">Spielregeln</h2>
-               <button onClick={() => setShowRules(false)} className="bg-red-600 text-white w-10 h-10 flex items-center justify-center rounded-xl font-black text-white text-white text-white">&times;</button>
+            <div className="p-6 bg-slate-950/50 flex justify-between items-center border-b border-slate-800 text-white">
+               <h2 className="text-2xl font-black italic uppercase tracking-widest text-white">Spielregeln</h2>
+               <button onClick={() => setShowRules(false)} className="bg-red-600 text-white w-10 h-10 flex items-center justify-center rounded-xl font-black text-white">&times;</button>
             </div>
-            <div className="p-8 overflow-auto custom-scrollbar text-slate-300 space-y-6 text-sm leading-relaxed text-left text-white text-white">
-              <div className="bg-blue-600/10 p-5 rounded-2xl border border-blue-500/20 text-xs text-white text-white text-white">
-                <p className="font-bold text-blue-400 uppercase tracking-widest text-[10px] mb-3">Punkte & Ablauf</p>
-                <ul className="list-disc ml-5 space-y-2 text-white text-white">
-                  <li><strong>Getroffen:</strong> 10 Pkt + 1 Pkt pro Stich.</li>
-                  <li><strong>Verfehlt:</strong> -10 Pkt pro Differenz-Stich zur Ansage.</li>
-                  <li><strong>Null angesagt:</strong> +10 Pkt bei Erfolg, -10 Pkt pro Stich bei Misserfolg.</li>
+            <div className="p-8 overflow-auto custom-scrollbar text-slate-300 space-y-6 text-sm leading-relaxed text-left text-white">
+              <div className="bg-blue-600/10 p-5 rounded-2xl border border-blue-500/20 text-xs text-white">
+                <p className="font-bold text-blue-400 uppercase tracking-widest text-[10px] mb-3 text-white">Punkte & Ablauf</p>
+                <ul className="list-disc ml-5 space-y-2 text-white">
+                  <li><strong>Getroffen:</strong> 10 Pkt + 1 Pkt pro Stich. (Zahl in <span className="text-green-500 font-bold">grün</span>)</li>
+                  <li><strong>Mehr gemacht als Soll:</strong> 1 Pkt pro Stich (Gesamt). (Zahl in <span className="text-blue-400 font-bold">hellblau</span>)</li>
+                  <li><strong>Weniger gemacht als Soll:</strong> -10 Pkt pro Differenz-Stich. (Zahl in <span className="text-red-500 font-bold">rot</span>)</li>
+                  <li><strong>Null angesagt:</strong> +10 Pkt bei Erfolg, -10 Pkt pro Stich bei Misserfolg. (Fehler bei 0 wird <span className="text-red-500 font-bold">rot</span> markiert)</li>
                   <li>Es herrscht <strong>Bedienpflicht</strong>. Joker stechen alles.</li>
-                  <li><strong>3 Spieler:</strong> Karten 2, 3 und 4 entfernt. 26 Runden.</li>
-                  <li><strong>5 Spieler:</strong> Volles Deck. 20 Runden.</li>
+                  <li><strong>Stechpflicht:</strong> Kann man nicht bekennen, MUSS man stechen (Trumpf oder Joker), falls vorhanden.</li>
+                  <li><strong>Überbietpflicht:</strong> Bei Trumpf oder beim Stechen muss man den höchsten Trumpf im Stich überbieten.</li>
                 </ul>
               </div>
             </div>
