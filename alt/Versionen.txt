@@ -5,5 +5,11 @@ V1:
 
 V2:
 - 3-5 Spieler möglich
-- Regeln, Zählen, Tabelle funktioniert
-- kein Zugriff auf Tabelle am Ende
+- Probleme beim Bekennen
+
+V3:
+- Bekennen funktioniert
+- Ansage und Anspielen funktioniert
+- Farbe rot grün blau Tabelle
+- Sortierung Farben auf der Hand
+- Ergebnistabelle am Spielende einsehbar
