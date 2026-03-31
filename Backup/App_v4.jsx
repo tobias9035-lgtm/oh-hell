@@ -363,18 +363,18 @@ export default function App() {
     if (!card) return null;
     const isRed = card.suit === 'hearts' || card.suit === 'diamonds';
     return (
-      <div key={card.id} onClick={() => playable && onClick && onClick(card)} className={`card-front w-[3.2rem] h-[4.4rem] sm:w-[4.2rem] sm:h-[6rem] md:w-[4.5rem] md:h-[6.5rem] rounded-xl border-2 flex flex-col justify-between p-1 sm:p-1.5 md:p-2 select-none transition-all duration-200 transform ${playable ? 'cursor-pointer hover:-translate-y-4 active:-translate-y-3 border-blue-400 card-playable z-10' : 'border-white/30'} ${isRed ? 'text-red-600' : 'text-slate-800'}`}>
+      <div key={card.id} onClick={() => playable && onClick && onClick(card)} className={`w-12 h-16 sm:w-16 sm:h-24 bg-white rounded-lg shadow-md border-2 flex flex-col justify-between p-1 sm:p-2 select-none transition-all transform ${playable ? 'cursor-pointer hover:-translate-y-4 border-blue-400 z-10' : 'border-slate-200'} ${isRed ? 'text-red-600' : 'text-slate-900'}`}>
         <div className="font-black text-[10px] sm:text-xs leading-none">{card.rank}</div>
-        <div className="text-lg sm:text-2xl md:text-3xl text-center self-center">{card.isJoker ? '🃏' : getSuitSymbol(card.suit)}</div>
+        <div className="text-xl sm:text-3xl text-center self-center">{card.isJoker ? '🃏' : getSuitSymbol(card.suit)}</div>
         <div className="font-black text-[10px] sm:text-xs text-right rotate-180 leading-none">{card.rank}</div>
       </div>
     );
   };
 
   const renderCardBack = () => (
-    <div className="card-back w-7 h-10 sm:w-10 sm:h-[3.75rem] md:w-12 md:h-[4.5rem] rounded-lg border border-white/20 flex items-center justify-center -ml-3 sm:-ml-5 first:ml-0 overflow-hidden">
-      <div className="card-back-inner w-full h-full m-0.5 rounded-sm flex items-center justify-center">
-        <span className="text-white/20 text-[5px] sm:text-[7px] font-bold rotate-45 uppercase tracking-wider">Oh Hell</span>
+    <div className="w-8 h-12 sm:w-12 sm:h-18 bg-blue-800 rounded shadow-md border-2 border-white flex items-center justify-center -ml-4 sm:-ml-6 first:ml-0 overflow-hidden">
+      <div className="w-full h-full border border-blue-400 opacity-30 m-0.5 sm:m-1 rounded-sm flex items-center justify-center">
+        <span className="text-white text-opacity-30 text-[6px] sm:text-[8px] font-bold rotate-45 uppercase">Oh Hell</span>
       </div>
     </div>
   );
@@ -387,28 +387,28 @@ export default function App() {
     return 'text-white';
   };
 
-  if (!user) return <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white p-8"><div className="animate-spin h-12 w-12 border-[3px] border-amber-500/30 border-t-amber-400 rounded-full mb-6"></div><p className="font-bold text-sm uppercase tracking-widest text-slate-400">Verbinde...</p></div>;
+  if (!user) return <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white p-8"><div className="animate-spin h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full mb-4"></div><p className="font-bold">Verbinde...</p></div>;
 
   if (!roomData) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 text-white">
-        <div className="glass-panel-light p-6 sm:p-8 rounded-3xl shadow-2xl text-center max-w-md w-full animate-fade-in-up">
-          <h1 className="gold-text text-4xl sm:text-5xl font-black mb-8 italic tracking-tight uppercase text-center">Oh Hell!</h1>
-          <div className="space-y-5">
+        <div className="bg-slate-900 p-8 rounded-3xl shadow-2xl text-center max-w-md w-full border border-slate-800">
+          <h1 className="text-4xl font-black text-yellow-500 mb-6 italic tracking-tight uppercase text-center">Oh Hell!</h1>
+          <div className="space-y-4">
              <div>
-                <label className="text-[10px] uppercase font-black text-slate-400 ml-1 text-left block tracking-wider">Dein Name</label>
-                <input value={userName} onChange={e => setUserName(e.target.value)} className="w-full bg-slate-800/80 border-2 border-slate-700/60 text-white p-3.5 rounded-xl outline-none focus:border-amber-500/60 font-bold mt-1 transition-colors" placeholder="Name..." />
+                <label className="text-[10px] uppercase font-black text-slate-400 ml-1 text-left block">Dein Name</label>
+                <input value={userName} onChange={e => setUserName(e.target.value)} className="w-full bg-slate-800 border-2 border-slate-700 text-white p-3 rounded-xl outline-none focus:border-blue-500 font-bold mt-1" placeholder="Name..." />
              </div>
-             <div className="bg-slate-800/50 p-5 rounded-2xl border border-slate-700/40 text-center">
-                <p className="text-[10px] uppercase font-black text-slate-400 mb-4 tracking-widest text-center">Spieleranzahl</p>
+             <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 text-center">
+                <p className="text-[10px] uppercase font-black text-slate-400 mb-3 tracking-widest text-center">Spieleranzahl</p>
                 <div className="flex justify-center gap-4">
-                   {[3, 4, 5].map(n => <button key={n} onClick={() => setTargetPlayerCount(n)} className={`w-12 h-12 rounded-xl font-black transition-all duration-200 ${targetPlayerCount === n ? 'bg-amber-500 text-slate-900 shadow-lg shadow-amber-500/25 scale-110' : 'bg-slate-700/70 text-slate-400 hover:bg-slate-600/70'}`}>{n}</button>)}
+                   {[3, 4, 5].map(n => <button key={n} onClick={() => setTargetPlayerCount(n)} className={`w-12 h-12 rounded-lg font-black transition-all ${targetPlayerCount === n ? 'bg-blue-600 text-white shadow-lg scale-110' : 'bg-slate-700 text-slate-400'}`}>{n}</button>)}
                 </div>
              </div>
-             <button onClick={handleCreateRoom} className="btn-premium w-full bg-gradient-to-r from-emerald-600 to-emerald-500 font-black py-4 rounded-xl shadow-lg shadow-emerald-600/20 hover:shadow-emerald-500/30 transition-all uppercase text-white tracking-wider">Raum Erstellen</button>
+             <button onClick={handleCreateRoom} className="w-full bg-green-600 font-black py-4 rounded-xl shadow-lg hover:bg-green-500 transition-all mb-4 uppercase text-white">Raum Erstellen</button>
              <div className="flex gap-2">
-               <input value={roomCodeInput} onChange={e => setRoomCodeInput(e.target.value.toUpperCase())} className="w-2/3 bg-slate-800/80 border border-slate-700/50 text-white p-4 rounded-xl text-center font-black tracking-widest focus:border-amber-500/60 outline-none transition-colors" placeholder="CODE" />
-               <button onClick={handleJoinRoom} className="btn-premium w-1/3 bg-slate-700/80 font-black rounded-xl uppercase text-xs text-white hover:bg-slate-600/80 transition-colors">Beitreten</button>
+               <input value={roomCodeInput} onChange={e => setRoomCodeInput(e.target.value.toUpperCase())} className="w-2/3 bg-slate-800 border border-slate-700 text-white p-4 rounded-xl text-center font-black tracking-widest" placeholder="CODE" />
+               <button onClick={handleJoinRoom} className="w-1/3 bg-slate-700 font-black rounded-xl uppercase text-xs text-white">Beitreten</button>
              </div>
           </div>
         </div>
@@ -419,18 +419,18 @@ export default function App() {
   if (roomData.status === 'waiting') {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 text-white">
-        <div className="glass-panel-light p-6 sm:p-8 rounded-3xl shadow-2xl text-center max-w-sm w-full relative animate-fade-in-up">
-          <div className="absolute top-0 right-0 bg-gradient-to-r from-amber-500 to-amber-400 text-slate-900 font-black px-5 py-1.5 rounded-bl-2xl text-sm tracking-wider">{roomData.id}</div>
-          <h2 className="text-2xl font-black mb-6 mt-4 uppercase tracking-wide text-slate-100">Warteraum</h2>
+        <div className="bg-slate-900 p-8 rounded-3xl shadow-2xl text-center max-w-sm w-full relative border border-slate-800">
+          <div className="absolute top-0 right-0 bg-yellow-500 text-slate-900 font-black px-4 py-1 rounded-bl-xl">{roomData.id}</div>
+          <h2 className="text-2xl font-black mb-6 mt-4 uppercase">Warteraum</h2>
           <div className="space-y-3 mb-8">
             {roomData.players.map((p, i) => (
-              <div key={`waiting-p-${p.uid}`} className="bg-slate-950/50 p-4 rounded-xl border border-slate-700/40 font-bold flex justify-between items-center text-white animate-fade-in">
+              <div key={`waiting-p-${p.uid}`} className="bg-slate-950/50 p-4 rounded-xl border border-slate-800 font-bold flex justify-between items-center text-white">
                 <span className="text-white">{p.name} {p.uid === roomData.hostUid && "👑"}</span>
-                {p.uid === user.uid && <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2.5 py-1 rounded-lg uppercase font-black">Du</span>}
+                {p.uid === user.uid && <span className="text-[10px] bg-blue-600/40 text-blue-100 px-2 py-1 rounded uppercase">Du</span>}
               </div>
             ))}
           </div>
-          {roomData.hostUid === user.uid ? <button onClick={handleStartGame} className="btn-premium w-full bg-gradient-to-r from-blue-600 to-blue-500 font-black py-5 rounded-xl shadow-xl shadow-blue-600/20 hover:shadow-blue-500/30 uppercase tracking-widest text-white">Start</button> : <p className="animate-pulse font-bold text-blue-400 uppercase text-xs tracking-widest text-center">Warte auf Host...</p>}
+          {roomData.hostUid === user.uid ? <button onClick={handleStartGame} className="w-full bg-blue-600 font-black py-5 rounded-xl shadow-xl hover:bg-blue-500 uppercase tracking-widest text-white">Start</button> : <p className="animate-pulse font-bold text-blue-400 uppercase text-xs tracking-widest text-center">Warte auf Host...</p>}
         </div>
       </div>
     );
@@ -444,37 +444,37 @@ export default function App() {
   const sortedSeats = Array.from({ length: num }, (_, i) => (mySeat + i) % num);
 
   return (
-    <div className="min-h-screen felt-table text-white flex flex-col overflow-hidden relative font-sans selection:bg-transparent">
+    <div className="min-h-screen bg-[#073b1e] text-white flex flex-col overflow-hidden relative font-sans selection:bg-transparent">
       {/* Header */}
-      <div className="glass-panel p-2.5 sm:p-3.5 flex justify-between items-center z-20 shadow-xl">
+      <div className="bg-black/60 p-2 sm:p-4 flex justify-between items-center z-20 border-b border-white/5 shadow-xl backdrop-blur-md">
         <div>
-           <h1 className="gold-text text-lg sm:text-xl font-black italic">OH HELL!</h1>
-           <p className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-widest">Runde {gs.roundIndex + 1} / {config.cardsPerRound.length}</p>
+           <h1 className="text-xl font-black text-yellow-500 italic drop-shadow-md">OH HELL!</h1>
+           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Runde {gs.roundIndex + 1} / {config.cardsPerRound.length}</p>
         </div>
-        <div className="flex gap-2 sm:gap-3 items-center">
-           <div className="bg-black/40 px-2.5 sm:px-3 py-1 rounded-lg border border-white/10 text-center min-w-[60px] sm:min-w-[70px]">
-              <p className="text-[7px] sm:text-[8px] text-slate-500 font-black uppercase">Trumpf</p>
-              <p className={`text-lg sm:text-xl font-black leading-none ${gs.trumpCard?.suit === 'hearts' || gs.trumpCard?.suit === 'diamonds' ? 'text-red-500' : 'text-slate-200'}`}>
+        <div className="flex gap-4 items-center">
+           <div className="bg-black/40 px-3 py-1 rounded-lg border border-white/10 text-center min-w-[70px]">
+              <p className="text-[8px] text-slate-500 font-black uppercase">Trumpf</p>
+              <p className={`text-xl font-black leading-none ${gs.trumpCard?.suit === 'hearts' || gs.trumpCard?.suit === 'diamonds' ? 'text-red-500' : 'text-slate-200'}`}>
                 {gs.trumpCard ? (gs.trumpCard.isJoker ? '🃏' : getSuitSymbol(gs.trumpCard.suit) + gs.trumpCard.rank) : '-'}
               </p>
            </div>
-           <button onClick={() => setShowRules(true)} className="bg-slate-800/80 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl font-black shadow-lg text-white hover:bg-slate-700/80 transition-colors">📖</button>
-           <button onClick={() => setShowScoreboard(true)} className="btn-premium bg-blue-600 font-black px-3 sm:px-4 py-2 rounded-xl border-b-[3px] border-blue-800 uppercase text-[10px] sm:text-xs tracking-widest text-white shadow-lg">📊 Tabelle</button>
+           <button onClick={() => setShowRules(true)} className="bg-slate-800 w-10 h-10 flex items-center justify-center rounded-xl font-black shadow-lg text-white">📖</button>
+           <button onClick={() => setShowScoreboard(true)} className="bg-blue-600 font-black px-4 py-2 rounded-xl border-b-4 border-blue-800 uppercase text-xs tracking-widest text-white shadow-lg">📊 Tabelle</button>
         </div>
       </div>
 
-      <div className="flex-1 relative flex items-center justify-center p-2 sm:p-4">
+      <div className="flex-1 relative flex items-center justify-center p-4">
         {/* Gegner Positionierung */}
         {sortedSeats.map((seat, i) => {
           if (seat === mySeat) return null;
           const p = roomData.players.find(x => x.seat === seat);
           const angle = (i / num) * 360 + 180;
           return (
-            <div key={`player-${seat}`} className="opponent-wrapper absolute flex flex-col items-center z-10 transition-all duration-500" style={{ transform: `rotate(${angle}deg) translateY(var(--opponent-distance)) rotate(${-angle}deg)` }}>
-              <div className={`${gs.currentPlayer === seat ? 'player-badge-active bg-blue-600 border-blue-400 scale-105 text-white' : 'player-badge bg-black/60 border-slate-700/60 text-slate-300'} px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-[9px] sm:text-[10px] font-black border backdrop-blur-md transition-all duration-300`}>
-                {p?.name} <span className="ml-1.5 sm:ml-2 font-mono text-amber-400">Pkt: {gs.scores[seat]}</span> <span className="ml-1 text-white/30">|</span> <span className="ml-1 font-mono text-emerald-400">{gs.tricksWon[seat]} / {gs.bids[seat] ?? '?'}</span>
+            <div key={`player-${seat}`} className="absolute flex flex-col items-center z-10 transition-all duration-500" style={{ transform: `rotate(${angle}deg) translateY(-220px) rotate(${-angle}deg)` }}>
+              <div className={`px-3 py-1 rounded-full text-[10px] font-black shadow-xl border backdrop-blur-md transition-all ${gs.currentPlayer === seat ? 'bg-blue-600 border-white scale-110 text-white' : 'bg-black/60 border-slate-700 text-slate-300'}`}>
+                {p?.name} <span className="ml-2 font-mono text-yellow-400">Pkt: {gs.scores[seat]}</span> <span className="ml-1 text-white opacity-50">|</span> <span className="ml-1 font-mono text-green-400">{gs.tricksWon[seat]} / {gs.bids[seat] ?? '?'}</span>
               </div>
-              <div className="flex -space-x-3 sm:-space-x-4 mt-1.5 sm:mt-2">
+              <div className="flex -space-x-4 mt-2">
                  {gs.hands[seat].map((_, idx) => <React.Fragment key={`hand-${seat}-${idx}`}>{renderCardBack()}</React.Fragment>)}
               </div>
             </div>
@@ -482,12 +482,12 @@ export default function App() {
         })}
 
         {/* Trick Area */}
-        <div className="trick-area trick-area-size rounded-full relative flex items-center justify-center">
+        <div className="w-64 h-64 sm:w-[32rem] sm:h-[32rem] bg-black/10 rounded-full border-[10px] border-black/30 relative flex items-center justify-center shadow-[inset_0_0_100px_rgba(0,0,0,0.4)]">
           {gs.trick.map((t) => {
             const angleIdx = sortedSeats.indexOf(t.playerIndex);
             const angle = (angleIdx / num) * 360 + 180;
             return (
-              <div key={`trick-card-${t.card.id}`} className="trick-card-offset absolute transition-all duration-500" style={{ transform: `rotate(${angle}deg) translateY(var(--trick-offset)) rotate(${-angle}deg)` }}>
+              <div key={`trick-card-${t.card.id}`} className="absolute transition-all duration-500" style={{ transform: `rotate(${angle}deg) translateY(-80px) rotate(${-angle}deg)` }}>
                 {renderCard(t.card)}
               </div>
             );
@@ -495,7 +495,7 @@ export default function App() {
 
           {/* Bidding Overlay */}
           {gs.phase === 'bidding' && gs.currentPlayer === mySeat && (
-            <div className="glass-panel-light p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] border-2 border-blue-500/60 shadow-2xl z-50 text-center animate-fade-in-up max-w-[300px] sm:max-w-[320px] animate-pulse-glow">
+            <div className="bg-slate-900/95 p-4 sm:p-6 rounded-[2rem] border-2 border-blue-500 shadow-2xl z-50 text-center animate-in zoom-in duration-300 max-w-[320px]">
                <p className="text-xs font-black uppercase text-blue-400 mb-2 tracking-tighter leading-none">Deine Ansage!</p>
                
                {(() => {
@@ -522,31 +522,31 @@ export default function App() {
 
                <div className="flex flex-wrap justify-center gap-2">
                   {Array.from({ length: config.cardsPerRound[gs.roundIndex] + 1 }).map((_, i) => (
-                    <button key={`bid-btn-${i}`} onClick={() => executeBid(mySeat, i)} className="btn-premium w-9 h-9 sm:w-11 sm:h-11 bg-gradient-to-b from-blue-500 to-blue-600 rounded-xl font-black text-sm hover:from-blue-400 hover:to-blue-500 transition-all shadow-[0_3px_0_rgb(30,58,138)] active:translate-y-0.5 active:shadow-[0_1px_0_rgb(30,58,138)] text-white">{i}</button>
+                    <button key={`bid-btn-${i}`} onClick={() => executeBid(mySeat, i)} className="w-9 h-9 sm:w-11 sm:h-11 bg-blue-600 rounded-xl font-black text-sm hover:bg-blue-500 transition-all shadow-[0_4px_0_rgb(30,58,138)] active:translate-y-1 text-white">{i}</button>
                   ))}
                </div>
             </div>
           )}
 
           {gs.phase === 'playing' && gs.currentPlayer === mySeat && gs.trick.length < num && (
-            <div className="bg-gradient-to-r from-amber-500 to-amber-400 text-slate-900 px-5 sm:px-6 py-2 rounded-full font-black text-xs sm:text-sm animate-subtle-bounce shadow-2xl shadow-amber-500/30 uppercase">Du bist dran</div>
+            <div className="bg-yellow-500 text-black px-6 py-2 rounded-full font-black text-sm animate-bounce shadow-2xl uppercase text-white">Du bist dran</div>
           )}
         </div>
       </div>
 
       {/* Spieler-Panel Unten */}
-      <div className="glass-panel p-3 sm:p-4 pb-6 sm:pb-8 safe-bottom shadow-[0_-10px_40px_rgba(0,0,0,0.4)] z-30">
+      <div className="bg-black/70 p-4 pb-10 shadow-[0_-20px_50px_rgba(0,0,0,0.5)] z-30 border-t border-white/10 backdrop-blur-xl">
         <div className="max-w-4xl mx-auto text-white">
-          <div className="flex justify-between items-center mb-3 sm:mb-4 text-white">
-             <div className="flex items-center gap-2 sm:space-x-3 text-white flex-wrap">
-                <div className="bg-gradient-to-r from-emerald-600 to-emerald-500 px-3 sm:px-4 py-1 sm:py-1.5 rounded-xl font-black shadow-lg border border-emerald-400/20 text-white uppercase text-[10px] sm:text-xs tracking-wider">Ich ({myPlayer?.name})</div>
-                <div className="bg-slate-900/60 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-white/5 font-mono font-bold text-[10px] sm:text-xs text-white">
-                  PKT: <span className="text-amber-400">{gs.scores[mySeat]}</span> &nbsp;|&nbsp; STICHE: <span className="text-emerald-400">{gs.tricksWon[mySeat]}</span> / {gs.bids[mySeat] ?? '?'}
+          <div className="flex justify-between items-center mb-6 text-white">
+             <div className="flex items-center space-x-4 text-white">
+                <div className="bg-gradient-to-r from-green-600 to-green-500 px-5 py-1.5 rounded-xl font-black shadow-xl border border-green-400/20 text-white uppercase text-xs tracking-widest text-white">Ich ({myPlayer?.name})</div>
+                <div className="bg-slate-900/80 px-4 py-1.5 rounded-xl border border-white/5 font-mono font-bold text-xs text-white">
+                  PKT: <span className="text-yellow-400">{gs.scores[mySeat]}</span> &nbsp;|&nbsp; STICHE: <span className="text-green-400">{gs.tricksWon[mySeat]}</span> / {gs.bids[mySeat] ?? '?'}
                 </div>
              </div>
-             <div className="text-[9px] sm:text-xs font-bold text-amber-400 bg-amber-500/10 px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-full border border-amber-500/20 shrink-0">{gs.message}</div>
+             <div className="text-[10px] sm:text-xs font-bold text-yellow-500 bg-yellow-500/10 px-4 py-1.5 rounded-full border border-yellow-500/20">{gs.message}</div>
           </div>
-          <div className="hand-card-gap flex justify-center overflow-x-auto pb-2 sm:pb-4 min-h-[70px] sm:min-h-[100px] px-1 text-white items-end">
+          <div className="flex justify-center gap-1.5 sm:gap-3 overflow-x-auto pb-4 min-h-[100px] px-2 text-white">
             {gs.hands[mySeat].map(c => {
                const valid = getValidCards(gs.hands[mySeat], gs.trick, gs.trumpCard?.suit);
                const playable = gs.phase === 'playing' && gs.currentPlayer === mySeat && valid.some(v => v.id === c.id);
@@ -558,19 +558,19 @@ export default function App() {
 
       {/* Endergebnis / Runden-Auswertung Overlay */}
       {(gs.phase === 'round_end' || roomData.status === 'finished') && (
-        <div className="overlay-backdrop absolute inset-0 z-[100] flex flex-col items-center justify-center p-3 sm:p-4 animate-fade-in">
-          <div className="glass-panel-light p-5 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl w-full max-w-2xl text-center animate-fade-in-up">
-            <h2 className="gold-text text-2xl sm:text-4xl font-black mb-6 sm:mb-8 uppercase italic tracking-tighter">
+        <div className="absolute inset-0 bg-black/90 z-[100] flex flex-col items-center justify-center backdrop-blur-xl p-4">
+          <div className="bg-slate-900 p-8 rounded-[40px] shadow-2xl border border-slate-700 w-full max-w-2xl text-center">
+            <h2 className="text-3xl sm:text-4xl font-black text-yellow-500 mb-8 uppercase italic tracking-tighter">
               {roomData.status === 'finished' ? 'ENDERGEBNIS' : `AUSWERTUNG RUNDE ${gs.roundIndex + 1}`}
             </h2>
-            <div className="overflow-hidden rounded-2xl sm:rounded-3xl border border-slate-700/50 bg-slate-950/50 text-white">
+            <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/50 text-white">
               <table className="w-full text-left border-collapse text-xs sm:text-base">
                 <thead>
-                  <tr className="bg-slate-800/60 text-slate-400 font-black uppercase text-[9px] sm:text-[10px] tracking-widest">
-                    <th className="p-3 sm:p-4">Spieler</th>
-                    <th className="p-3 sm:p-4 text-center">Soll</th>
-                    <th className="p-3 sm:p-4 text-center">Ist</th>
-                    <th className="p-3 sm:p-4 text-right">Gesamt</th>
+                  <tr className="bg-slate-800/80 text-slate-400 font-black uppercase text-[10px] tracking-widest">
+                    <th className="p-4">Spieler</th>
+                    <th className="p-4 text-center">Soll</th>
+                    <th className="p-4 text-center">Ist</th>
+                    <th className="p-4 text-right">Gesamt</th>
                   </tr>
                 </thead>
                 <tbody className="font-bold">
@@ -579,11 +579,11 @@ export default function App() {
                     const bid = gs.bids[seatIndex];
                     const won = gs.tricksWon[seatIndex];
                     return (
-                      <tr key={`result-row-${seatIndex}`} className={`border-b border-slate-800/30 ${seatIndex === mySeat ? 'bg-blue-600/10' : ''}`}>
-                        <td className="p-3 sm:p-4 font-black text-white">{p?.name}</td>
-                        <td className="p-3 sm:p-4 text-slate-400 text-center">{bid}</td>
-                        <td className="p-3 sm:p-4 text-center"><span className={getWonColor(won, bid)}>{won}</span></td>
-                        <td className="p-3 sm:p-4 font-mono text-right text-amber-400">{gs.scores[seatIndex]}</td>
+                      <tr key={`result-row-${seatIndex}`} className={`border-b border-slate-800/50 ${seatIndex === mySeat ? 'bg-blue-600/10' : ''}`}>
+                        <td className="p-4 font-black text-white">{p?.name}</td>
+                        <td className="p-4 text-slate-400 text-center">{bid}</td>
+                        <td className="p-4 text-center"><span className={getWonColor(won, bid)}>{won}</span></td>
+                        <td className="p-4 font-mono text-right text-yellow-500">{gs.scores[seatIndex]}</td>
                       </tr>
                     );
                   })}
@@ -591,14 +591,14 @@ export default function App() {
               </table>
             </div>
 
-            <div className="flex flex-wrap gap-3 sm:gap-4 justify-center mt-8 sm:mt-10">
+            <div className="flex flex-wrap gap-4 justify-center mt-10">
               {roomData.status === 'finished' ? (
                 <>
-                  <button onClick={() => setShowScoreboard(true)} className="btn-premium bg-gradient-to-r from-blue-600 to-blue-500 text-white font-black py-3 sm:py-4 px-6 sm:px-8 rounded-2xl shadow-2xl shadow-blue-600/20 transition-all uppercase tracking-widest text-xs sm:text-sm">Tabelle ansehen</button>
-                  <button onClick={() => window.location.reload()} className="btn-premium bg-white text-slate-900 font-black py-3 sm:py-4 px-8 sm:px-12 rounded-2xl shadow-2xl transition-all uppercase tracking-widest text-xs sm:text-sm hover:bg-slate-100">Hauptmenü</button>
+                  <button onClick={() => setShowScoreboard(true)} className="bg-blue-600 text-white font-black py-4 px-8 rounded-2xl shadow-2xl hover:bg-blue-500 transition-all uppercase tracking-widest text-sm transform hover:scale-105">Tabelle ansehen</button>
+                  <button onClick={() => window.location.reload()} className="bg-white text-black font-black py-4 px-12 rounded-2xl shadow-2xl hover:bg-slate-200 transition-all uppercase tracking-widest text-sm transform hover:scale-105">Hauptmenü</button>
                 </>
               ) : (
-                <p className="text-slate-500 font-black text-xs uppercase tracking-widest animate-pulse italic">Nächste Runde wird vorbereitet...</p>
+                <p className="text-slate-600 font-black text-xs uppercase tracking-widest animate-pulse italic">Nächste Runde wird vorbereitet...</p>
               )}
             </div>
           </div>
@@ -607,42 +607,42 @@ export default function App() {
 
       {/* Scoreboard Overlay (Höchster Z-Index) */}
       {showScoreboard && (
-        <div className="overlay-backdrop absolute inset-0 z-[110] flex flex-col items-center p-1.5 sm:p-4 md:p-8 text-white animate-fade-in">
-          <div className="glass-panel-light rounded-2xl sm:rounded-[2.5rem] shadow-2xl w-full max-w-6xl flex flex-col h-full overflow-hidden text-white animate-fade-in-up">
-            <div className="p-4 sm:p-6 flex justify-between items-center border-b border-slate-700/40 bg-slate-950/30 text-white">
-               <h2 className="gold-text text-xl sm:text-3xl font-black italic tracking-tighter uppercase">Scoreboard</h2>
-               <button onClick={() => setShowScoreboard(false)} className="btn-premium bg-red-600/90 text-white w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl sm:rounded-2xl font-black text-xl sm:text-2xl shadow-xl transition-all hover:bg-red-500">&times;</button>
+        <div className="absolute inset-0 bg-black/98 z-[110] flex flex-col items-center p-2 sm:p-8 backdrop-blur-2xl text-white">
+          <div className="bg-slate-900 rounded-[40px] shadow-2xl border border-slate-700 w-full max-w-6xl flex flex-col h-full overflow-hidden text-white">
+            <div className="p-6 flex justify-between items-center border-b border-slate-800 bg-slate-950/50 text-white">
+               <h2 className="text-2xl sm:text-3xl font-black italic tracking-tighter uppercase text-white">Scoreboard</h2>
+               <button onClick={() => setShowScoreboard(false)} className="bg-red-600 text-white w-10 h-10 flex items-center justify-center rounded-2xl font-black text-2xl shadow-xl transition-all hover:bg-red-500">&times;</button>
             </div>
-            <div className="p-2 sm:p-4 md:p-6 overflow-auto flex-1 custom-scrollbar text-white text-left">
-              <table className="w-full text-center border-separate border-spacing-y-1 sm:border-spacing-y-2 text-white">
-                <thead className="sticky top-0 bg-slate-900/95 z-10 shadow-sm text-white">
-                  <tr className="text-slate-400 uppercase font-black text-[8px] sm:text-[10px] tracking-widest text-white">
-                    <th className="p-2 sm:p-3 text-left text-white">Rd</th>
-                    {roomData.players.map(p => <th key={`header-p-${p.uid}`} className="p-2 sm:p-3 text-white" colSpan={3}>{p.name}</th>)}
+            <div className="p-4 sm:p-6 overflow-auto flex-1 custom-scrollbar text-white text-left">
+              <table className="w-full text-center border-separate border-spacing-y-2 text-white">
+                <thead className="sticky top-0 bg-slate-900 z-10 shadow-sm text-white">
+                  <tr className="text-slate-400 uppercase font-black text-[10px] tracking-widest text-white">
+                    <th className="p-3 text-left text-white">Rd</th>
+                    {roomData.players.map(p => <th key={`header-p-${p.uid}`} className="p-3 text-white" colSpan={3}>{p.name}</th>)}
                   </tr>
                 </thead>
-                <tbody className="font-mono text-[8px] sm:text-xs text-white">
+                <tbody className="font-mono text-[10px] sm:text-xs text-white">
                   {config.cardsPerRound.map((cardCount, ri) => {
                     const h = gs.scoreHistory.find(x => x.roundIndex === ri);
                     return (
-                      <tr key={`round-row-${ri}`} className={`rounded-xl transition-colors ${gs.roundIndex === ri ? 'bg-blue-600/20 ring-1 sm:ring-2 ring-blue-500/50' : 'bg-slate-950/40 hover:bg-white/5'}`}>
-                        <td className="p-1.5 sm:p-3 text-left font-black text-slate-400 bg-black/20 rounded-l-xl text-white">{ri + 1} ({cardCount})</td>
+                      <tr key={`round-row-${ri}`} className={`rounded-xl transition-colors ${gs.roundIndex === ri ? 'bg-blue-600/20 ring-2 ring-blue-500/50' : 'bg-slate-950/40 hover:bg-white/5'}`}>
+                        <td className="p-3 text-left font-black text-slate-400 bg-black/20 rounded-l-xl text-white">{ri + 1} ({cardCount})</td>
                         {Array.from({ length: num }).map((_, pi) => {
-                           if (!h) return <td key={`round-${ri}-p-${pi}`} colSpan={3} className="p-1.5 sm:p-3 text-slate-800 italic">-</td>;
+                           if (!h) return <td key={`round-${ri}-p-${pi}`} colSpan={3} className="p-3 text-slate-800 italic">-</td>;
                            return (
                              <React.Fragment key={`round-${ri}-p-${pi}-data`}>
-                               <td className="p-1 sm:p-2 text-slate-400 bg-black/5 text-white">{h.bids[pi]}</td>
-                               <td className={`p-1 sm:p-2 font-black ${getWonColor(h.won[pi], h.bids[pi])}`}>{h.won[pi]}</td>
-                               <td className="p-1 sm:p-2 font-black text-amber-400 bg-black/20 border-r border-slate-800/30 last:border-0 text-white">{h.scores[pi]}</td>
+                               <td className="p-2 text-slate-400 bg-black/5 text-white">{h.bids[pi]}</td>
+                               <td className={`p-2 font-black ${getWonColor(h.won[pi], h.bids[pi])}`}>{h.won[pi]}</td>
+                               <td className="p-2 font-black text-yellow-400 bg-black/20 border-r border-slate-800/30 last:border-0 text-white">{h.scores[pi]}</td>
                              </React.Fragment>
                            );
                         })}
                       </tr>
                     );
                   })}
-                  <tr className="bg-gradient-to-r from-blue-600 to-blue-500 font-black text-xs sm:text-base text-white sticky bottom-0 shadow-2xl border-t-2 sm:border-t-4 border-blue-400">
-                    <td className="p-2 sm:p-4 text-left rounded-l-xl sm:rounded-l-2xl uppercase italic text-white">Gesamt</td>
-                    {gs.scores.map((s, si) => <td key={`total-score-${si}`} colSpan={3} className={`p-2 sm:p-4 ${si === num-1 ? 'rounded-r-xl sm:rounded-r-2xl' : ''} text-amber-200 text-white`}>{s} PKT</td>)}
+                  <tr className="bg-blue-600 font-black text-sm sm:text-base text-white sticky bottom-0 shadow-2xl border-t-4 border-blue-400">
+                    <td className="p-4 text-left rounded-l-2xl uppercase italic text-white">Gesamt</td>
+                    {gs.scores.map((s, si) => <td key={`total-score-${si}`} colSpan={3} className={`p-4 ${si === num-1 ? 'rounded-r-2xl' : ''} text-yellow-300 text-white`}>{s} PKT</td>)}
                   </tr>
                 </tbody>
               </table>
@@ -653,14 +653,14 @@ export default function App() {
 
       {/* Regeln Overlay */}
       {showRules && (
-        <div className="overlay-backdrop absolute inset-0 z-[100] flex flex-col items-center justify-center p-3 sm:p-4 text-white animate-fade-in">
-          <div className="glass-panel-light rounded-2xl sm:rounded-[2rem] shadow-2xl w-full max-w-2xl flex flex-col max-h-[85vh] overflow-hidden text-white animate-fade-in-up">
-            <div className="p-4 sm:p-6 bg-slate-950/30 flex justify-between items-center border-b border-slate-700/40 text-white">
-               <h2 className="gold-text text-xl sm:text-2xl font-black italic uppercase tracking-widest text-white">Spielregeln</h2>
-               <button onClick={() => setShowRules(false)} className="btn-premium bg-red-600/90 text-white w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl font-black text-xl shadow-lg hover:bg-red-500 transition-colors">&times;</button>
+        <div className="absolute inset-0 bg-black/95 z-[100] flex flex-col items-center justify-center p-4 backdrop-blur-3xl text-white">
+          <div className="bg-slate-900 rounded-[32px] shadow-2xl border border-slate-700 w-full max-w-2xl flex flex-col max-h-[85vh] overflow-hidden text-white">
+            <div className="p-6 bg-slate-950/50 flex justify-between items-center border-b border-slate-800 text-white">
+               <h2 className="text-2xl font-black italic uppercase tracking-widest text-white">Spielregeln</h2>
+               <button onClick={() => setShowRules(false)} className="bg-red-600 text-white w-10 h-10 flex items-center justify-center rounded-xl font-black text-white">&times;</button>
             </div>
-            <div className="p-5 sm:p-8 overflow-auto custom-scrollbar text-slate-300 space-y-6 text-sm leading-relaxed text-left text-white">
-              <div className="bg-blue-600/8 p-4 sm:p-5 rounded-2xl border border-blue-500/15 text-xs text-white">
+            <div className="p-8 overflow-auto custom-scrollbar text-slate-300 space-y-6 text-sm leading-relaxed text-left text-white">
+              <div className="bg-blue-600/10 p-5 rounded-2xl border border-blue-500/20 text-xs text-white">
                 <p className="font-bold text-blue-400 uppercase tracking-widest text-[10px] mb-3 text-white">Punkte & Ablauf</p>
                 <ul className="list-disc ml-5 space-y-2 text-white">
                   <li><strong>Getroffen:</strong> 10 Pkt + 1 Pkt pro Stich. (Zahl in <span className="text-green-500 font-bold">grün</span>)</li>

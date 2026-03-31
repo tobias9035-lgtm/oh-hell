@@ -13,3 +13,7 @@ V3:
 - Farbe rot grün blau Tabelle
 - Sortierung Farben auf der Hand
 - Ergebnistabelle am Spielende einsehbar
+
+V4:
+- Bugs gefixt
+- Mobile responsible
