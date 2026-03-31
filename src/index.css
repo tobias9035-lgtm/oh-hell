@@ -1,9 +1,10 @@
-/* ===================== BASE STYLES ===================== */
+/* In Tailwind v4 wird das gesamte Framework über diesen einen Import geladen */
+@import "tailwindcss";
+
 @layer base {
   body {
     margin: 0;
-    padding: env(safe-area-inset-top) 0 calc(env(safe-area-inset-bottom) + 0.5rem) 0;
-    min-height: 100dvh;
+    padding: 0;
     overflow: hidden;
     background-color: #073b1e;
     font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
@@ -20,12 +21,13 @@
     box-sizing: border-box;
   }
 
+  /* Prevent zoom on input focus (iOS) */
   input[type="text"] {
     font-size: 16px;
   }
 }
 
-/* ===================== CUSTOM SCROLLBAR ===================== */
+/* Custom Scrollbar für die Tabelle */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -42,62 +44,73 @@
   background: rgba(255, 255, 255, 0.25);
 }
 
-/* ===================== PREMIUM CARD STYLES ===================== */
+/* ===== PREMIUM CARD STYLES ===== */
 .card-front {
   background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 50%, #f0f1f3 100%);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.9);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.15),
+    0 1px 3px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 .card-front.card-playable {
-  box-shadow: 0 4px 20px rgba(59,130,246,0.4), 0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.9);
+  box-shadow:
+    0 4px 20px rgba(59, 130, 246, 0.4),
+    0 2px 8px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
+
 .card-back {
   background: linear-gradient(135deg, #1e3a5f 0%, #1a237e 50%, #0d1b3e 100%);
-  box-shadow: 0 2px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08);
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 .card-back-inner {
-  background: repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255,255,255,0.03) 4px, rgba(255,255,255,0.03) 8px);
-  border: 1px solid rgba(100,149,237,0.2);
+  background: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 4px,
+    rgba(255, 255, 255, 0.03) 4px,
+    rgba(255, 255, 255, 0.03) 8px
+  );
+  border: 1px solid rgba(100, 149, 237, 0.2);
 }
 
-/* ===================== FELT TABLE TEXTURE ===================== */
+/* ===== FELT TABLE TEXTURE ===== */
 .felt-table {
-  background: radial-gradient(ellipse at center, rgba(12,92,46,0.6) 0%, rgba(7,59,30,0.95) 70%);
+  background:
+    radial-gradient(ellipse at center, rgba(12, 92, 46, 0.6) 0%, rgba(7, 59, 30, 0.95) 70%);
 }
 
-/* ===================== TRICK AREA ===================== */
+/* ===== TRICK AREA ===== */
 .trick-area {
-  background: radial-gradient(ellipse at center, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.15) 100%);
-  box-shadow: inset 0 0 80px rgba(0,0,0,0.3), 0 0 40px rgba(0,0,0,0.15);
-  border: 6px solid rgba(0,0,0,0.25);
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.05) 0%, rgba(0, 0, 0, 0.15) 100%);
+  box-shadow:
+    inset 0 0 80px rgba(0, 0, 0, 0.3),
+    0 0 40px rgba(0, 0, 0, 0.15);
+  border: 6px solid rgba(0, 0, 0, 0.25);
 }
 @media (min-width: 640px) {
-  .trick-area { border-width: 8px; }
+  .trick-area {
+    border-width: 8px;
+  }
 }
 
-/* Trick area responsive sizing */
-.trick-area-size {
-  width: 35vmin;
-  height: 35vmin;
-}
-@media (min-width: 480px) { .trick-area-size { width: 30vmin; height: 30vmin; } }
-@media (min-width: 640px) { .trick-area-size { width: 25vmin; height: 25vmin; } }
-@media (min-width: 1024px) { .trick-area-size { width: 20vmin; height: 20vmin; } }
-
-/* ===================== GLASS PANELS ===================== */
+/* ===== GLASS PANELS ===== */
 .glass-panel {
-  background: rgba(0,0,0,0.55);
+  background: rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 .glass-panel-light {
-  background: rgba(15,23,42,0.85);
+  background: rgba(15, 23, 42, 0.85);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255,255,255,0.06);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-/* ===================== GOLD ACCENT ===================== */
+/* ===== GOLD ACCENT ===== */
 .gold-text {
   background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 40%, #d97706 100%);
   -webkit-background-clip: text;
@@ -105,7 +118,7 @@
   background-clip: text;
 }
 
-/* ===================== PREMIUM BUTTONS ===================== */
+/* ===== PREMIUM BUTTONS ===== */
 .btn-premium {
   position: relative;
   overflow: hidden;
@@ -118,76 +131,149 @@
   background: linear-gradient(180deg, rgba(255,255,255,0.1) 0%, transparent 50%);
   pointer-events: none;
 }
-.btn-premium:active { transform: scale(0.97); }
+.btn-premium:active {
+  transform: scale(0.97);
+}
 
-/* ===================== PLAYER BADGE ===================== */
+/* ===== PLAYER BADGE ===== */
 .player-badge {
-  box-shadow: 0 4px 15px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+  box-shadow:
+    0 4px 15px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 .player-badge-active {
-  box-shadow: 0 0 20px rgba(59,130,246,0.5), 0 4px 15px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15);
+  box-shadow:
+    0 0 20px rgba(59, 130, 246, 0.5),
+    0 4px 15px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
-/* ===================== OVERLAY BACKDROP ===================== */
+/* ===== OVERLAY BACKDROP ===== */
 .overlay-backdrop {
-  background: rgba(0,0,0,0.88);
+  background: rgba(0, 0, 0, 0.88);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
 }
 
-/* ===================== ANIMATIONS ===================== */
-@keyframes fadeInUp { from { opacity:0; transform: translateY(12px);} to { opacity:1; transform: translateY(0);} }
-@keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
-@keyframes pulseGlow { 0%,100% { box-shadow:0 0 15px rgba(59,130,246,0.3);} 50%{ box-shadow:0 0 30px rgba(59,130,246,0.6);} }
-@keyframes subtleBounce { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-6px);} }
-.animate-fade-in-up { animation: fadeInUp 0.4s ease-out; }
-.animate-fade-in { animation: fadeIn 0.3s ease-out; }
-.animate-pulse-glow { animation: pulseGlow 2s ease-in-out infinite; }
-.animate-subtle-bounce { animation: subtleBounce 1.5s ease-in-out infinite; }
-
-/* ===================== MOBILE / RESPONSIVE ===================== */
-/* Safe area padding for Notch */
-.safe-bottom {
-  padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+/* ===== ANIMATIONS ===== */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(59, 130, 246, 0.6);
+  }
+}
+@keyframes subtleBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.animate-fade-in-up {
+  animation: fadeInUp 0.4s ease-out;
+}
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+.animate-pulse-glow {
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+.animate-subtle-bounce {
+  animation: subtleBounce 1.5s ease-in-out infinite;
 }
 
-/* ===================== GAME CONTAINER ===================== */
-.game-container {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start; /* nicht center */
-  align-items: center;
-  height: 100dvh;
-  padding-top: 5vmin; /* optional: etwas Abstand oben */
-  padding-bottom: calc(env(safe-area-inset-bottom) + 0.5rem);
-  position: relative;
+/* ===== MOBILE RESPONSIVE HELPERS ===== */
+
+/* Safe area insets for notched devices */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .safe-bottom {
+    padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+  }
 }
 
-/* ===================== OPPONENT POSITION ===================== */
+/* Opponent positioning responsive */
 .opponent-wrapper {
-  --opponent-distance: -8vmin;
-  position: absolute;
-  top: var(--opponent-distance);
-  left: 50%;
-  transform: translateX(-50%);
+  --opponent-distance: -130px;
 }
-@media (min-width: 480px) { .opponent-wrapper { --opponent-distance: -7vmin; } }
-@media (min-width: 640px) { .opponent-wrapper { --opponent-distance: -6vmin; } }
-@media (min-width: 1024px) { .opponent-wrapper { --opponent-distance: -5vmin; } }
+@media (min-width: 480px) {
+  .opponent-wrapper {
+    --opponent-distance: -170px;
+  }
+}
+@media (min-width: 640px) {
+  .opponent-wrapper {
+    --opponent-distance: -220px;
+  }
+}
+@media (min-width: 1024px) {
+  .opponent-wrapper {
+    --opponent-distance: -260px;
+  }
+}
 
-/* ===================== HAND CARDS / FOOTER ===================== */
-.hand-cards-wrapper {
-  position: absolute;
-  bottom: calc(env(safe-area-inset-bottom) + 0.5rem);
-  display: flex;
+/* Trick area responsive sizing */
+.trick-area-size {
+  width: 190px;
+  height: 190px;
+}
+@media (min-width: 480px) {
+  .trick-area-size {
+    width: 250px;
+    height: 250px;
+  }
+}
+@media (min-width: 640px) {
+  .trick-area-size {
+    width: 420px;
+    height: 420px;
+  }
+}
+@media (min-width: 1024px) {
+  .trick-area-size {
+    width: 500px;
+    height: 500px;
+  }
+}
+
+/* Trick card translate responsive */
+.trick-card-offset {
+  --trick-offset: -45px;
+}
+@media (min-width: 480px) {
+  .trick-card-offset {
+    --trick-offset: -60px;
+  }
+}
+@media (min-width: 640px) {
+  .trick-card-offset {
+    --trick-offset: -80px;
+  }
+}
+
+/* Hand cards responsive */
+.hand-card-gap {
   gap: 3px;
 }
-@media (min-width: 480px) { .hand-cards-wrapper { gap: 6px; } }
-@media (min-width: 640px) { .hand-cards-wrapper { gap: 10px; } }
-
-/* ===================== TRICK CARD OFFSET ===================== */
-.trick-card-offset {
-  --trick-offset: -8vmin;
+@media (min-width: 480px) {
+  .hand-card-gap {
+    gap: 6px;
+  }
 }
-@media (min-width: 480px) { .trick-card-offset { --trick-offset: -6vmin; } }
-@media (min-width: 640px) { .trick-card-offset { --trick-offset: -5vmin; } }
+@media (min-width: 640px) {
+  .hand-card-gap {
+    gap: 10px;
+  }
+}
