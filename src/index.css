@@ -5,6 +5,7 @@
   body {
     margin: 0;
     padding: 0;
+	padding-bottom: calc(1rem + env(safe-area-inset-bottom));
     overflow: hidden;
     background-color: #073b1e;
     font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
