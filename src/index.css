@@ -155,11 +155,13 @@
 .game-container {
   display: flex;
   flex-direction: column;
-  justify-content: center; 
+  justify-content: flex-start; /* nicht center */
   align-items: center;
   height: 100dvh;
-  width: 100%;
+  padding-top: 5vmin; /* optional: etwas Abstand oben */
+  padding-bottom: calc(env(safe-area-inset-bottom) + 0.5rem);
   position: relative;
+}
 }
 
 /* ===================== OPPONENT POSITION ===================== */
