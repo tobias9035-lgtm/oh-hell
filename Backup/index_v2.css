@@ -2,12 +2,10 @@
 @import "tailwindcss";
 
 @layer base {
-  /* ===== BODY & GLOBAL STYLES ===== */
   body {
     margin: 0;
-    padding: env(safe-area-inset-top) 0 calc(env(safe-area-inset-bottom) + 0.5rem) 0;
-    min-height: 100dvh;       /* volle Höhe auf Mobile, dynamisch */
-    overflow: hidden;          /* Scroll gesperrt */
+    padding: 0;
+    overflow: hidden;
     background-color: #073b1e;
     font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
@@ -17,14 +15,13 @@
     touch-action: manipulation;
   }
 
-  /* ===== BOX-SIZING ===== */
   *,
   *::before,
   *::after {
     box-sizing: border-box;
   }
 
-  /* ===== INPUT ZOOM FIX (iOS) ===== */
+  /* Prevent zoom on input focus (iOS) */
   input[type="text"] {
     font-size: 16px;
   }

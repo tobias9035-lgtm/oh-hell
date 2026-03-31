@@ -1,19 +1,28 @@
-V1:
+App V1:
 - 4 Spieler
 - Regeln, Zählen, Tabelle funktioniert
 - kein Zugriff auf Tabelle am Ende
 
-V2:
+App V2:
 - 3-5 Spieler möglich
 - Probleme beim Bekennen
 
-V3:
+App V3:
 - Bekennen funktioniert
 - Ansage und Anspielen funktioniert
 - Farbe rot grün blau Tabelle
 - Sortierung Farben auf der Hand
 - Ergebnistabelle am Spielende einsehbar
 
-V4:
+App V4:
 - Bugs gefixt
+- ohne Mobile responsible
+
+App V5:
+- Mobile resposible
+
+Index V1:
+- ohne Mobile responsible
+
+Index V2:
 - Mobile responsible
